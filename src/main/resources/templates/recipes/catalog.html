@@ -22,15 +22,60 @@
 			</div>
 			<div class="page-actions">
 				<a class="button" th:unless="${archivedView}" href="/recipes/new">Добавить рецепт</a>
+				<a th:unless="${archivedView}" href="/recipes/match">Подбор по продуктам</a>
 				<a th:unless="${archivedView}" href="/recipes/archive">Архив</a>
 				<a th:if="${archivedView}" href="/recipes">Вернуться в каталог</a>
 			</div>
 		</div>
 		<p class="flash-message" th:if="${message}" th:text="${message}">Готово</p>
+
+		<form class="catalog-filters" th:unless="${archivedView}" th:action="@{/recipes}" method="get"
+			  aria-label="Поиск и фильтры рецептов">
+			<label class="field catalog-filters__query">
+				<span>Название или ингредиент</span>
+				<input type="search" name="query" th:value="${search.query}"
+					   placeholder="Например, курица или гречка">
+			</label>
+			<label class="field">
+				<span>Не дольше, минут</span>
+				<input type="number" name="maxMinutes" th:value="${search.maxMinutes}" min="1" max="2880"
+					   placeholder="Любое время">
+			</label>
+			<label class="field">
+				<span>Сложность</span>
+				<select name="difficulty">
+					<option value="">Любая</option>
+					<option th:each="item : ${difficultyOptions}" th:value="${item}"
+							th:selected="${search.difficulty == item}" th:text="${item.displayName}">Легко</option>
+				</select>
+			</label>
+			<label class="field">
+				<span>Оборудование</span>
+				<select name="equipmentId">
+					<option value="">Любое</option>
+					<option th:each="item : ${equipmentOptions}" th:value="${item.id}"
+							th:selected="${search.equipmentId == item.id}" th:text="${item.name}">Мультиварка</option>
+				</select>
+			</label>
+			<label class="field">
+				<span>Способ приготовления</span>
+				<select name="cookingMethodId">
+					<option value="">Любой</option>
+					<option th:each="item : ${cookingMethodOptions}" th:value="${item.id}"
+							th:selected="${search.cookingMethodId == item.id}" th:text="${item.name}">Тушение</option>
+				</select>
+			</label>
+			<div class="catalog-filters__actions">
+				<button class="button" type="submit">Найти</button>
+				<a th:if="${filtersApplied}" href="/recipes">Сбросить</a>
+			</div>
+		</form>
+
 		<p th:text="|Найдено рецептов: ${#lists.size(recipes)}|">Найдено рецептов: 0</p>
 
 		<p class="empty-state" th:if="${#lists.isEmpty(recipes)}">
-			В каталоге пока нет рецептов.
+			<span th:if="${filtersApplied}">По заданным условиям рецепты не найдены. Попробуй изменить или сбросить фильтры.</span>
+			<span th:unless="${filtersApplied}">В каталоге пока нет рецептов.</span>
 		</p>
 
 		<section class="recipe-grid" aria-label="Список рецептов" th:unless="${#lists.isEmpty(recipes)}">

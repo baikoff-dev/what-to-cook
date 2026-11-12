@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import jakarta.validation.Valid;
@@ -22,14 +23,17 @@ public class RecipeController {
 
 	private final RecipeCatalogService recipeCatalogService;
 	private final RecipeManagementService recipeManagementService;
+	private final RecipeMatchingService recipeMatchingService;
 	private final RecipeFormValidator recipeFormValidator;
 
 	public RecipeController(
 			RecipeCatalogService recipeCatalogService,
 			RecipeManagementService recipeManagementService,
+			RecipeMatchingService recipeMatchingService,
 			RecipeFormValidator recipeFormValidator) {
 		this.recipeCatalogService = recipeCatalogService;
 		this.recipeManagementService = recipeManagementService;
+		this.recipeMatchingService = recipeMatchingService;
 		this.recipeFormValidator = recipeFormValidator;
 	}
 
@@ -39,8 +43,20 @@ public class RecipeController {
 	}
 
 	@GetMapping
-	public String catalog(Model model) {
-		model.addAttribute("recipes", recipeCatalogService.getCatalog());
+	public String catalog(
+			@RequestParam(required = false) String query,
+			@RequestParam(required = false) Integer maxMinutes,
+			@RequestParam(required = false) Difficulty difficulty,
+			@RequestParam(required = false) Long equipmentId,
+			@RequestParam(required = false) Long cookingMethodId,
+			Model model) {
+		var search = new RecipeSearchCriteria(query, maxMinutes, difficulty, equipmentId, cookingMethodId);
+		model.addAttribute("recipes", recipeCatalogService.search(search));
+		model.addAttribute("search", search);
+		model.addAttribute("filtersApplied", search.hasFilters());
+		model.addAttribute("equipmentOptions", recipeManagementService.getEquipmentOptions());
+		model.addAttribute("cookingMethodOptions", recipeManagementService.getCookingMethodOptions());
+		model.addAttribute("difficultyOptions", Difficulty.values());
 		model.addAttribute("pageTitle", "Каталог рецептов");
 		model.addAttribute("archivedView", false);
 		return "recipes/catalog";
@@ -51,7 +67,16 @@ public class RecipeController {
 		model.addAttribute("recipes", recipeCatalogService.getArchive());
 		model.addAttribute("pageTitle", "Архив рецептов");
 		model.addAttribute("archivedView", true);
+		model.addAttribute("filtersApplied", false);
 		return "recipes/catalog";
+	}
+
+	@GetMapping("/match")
+	public String match(
+			@RequestParam(required = false) List<Long> ingredientIds,
+			Model model) {
+		model.addAttribute("matching", recipeMatchingService.match(ingredientIds));
+		return "recipes/match";
 	}
 
 	@GetMapping("/new")
@@ -128,8 +153,16 @@ public class RecipeController {
 	}
 
 	@GetMapping("/{id}")
-	public String details(@PathVariable long id, Model model) {
-		model.addAttribute("recipe", recipeCatalogService.getRecipe(id));
+	public String details(
+			@PathVariable long id,
+			@RequestParam(required = false) Integer servings,
+			Model model) {
+		try {
+			model.addAttribute("recipe", recipeCatalogService.getRecipe(id, servings));
+		} catch (IllegalArgumentException exception) {
+			model.addAttribute("recipe", recipeCatalogService.getRecipe(id));
+			model.addAttribute("portionError", exception.getMessage());
+		}
 		return "recipes/details";
 	}
 

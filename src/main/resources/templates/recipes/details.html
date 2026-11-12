@@ -79,8 +79,26 @@
 
 		<div class="recipe-columns">
 			<section>
-				<h2>Ингредиенты</h2>
-				<p class="section-note" th:text="|Количество указано на ${recipe.servings} порц.|">Количество на 2 порции</p>
+				<div class="portion-heading">
+					<div>
+						<h2>Ингредиенты</h2>
+						<p class="section-note" th:if="${recipe.servings == recipe.baseServings}"
+						   th:text="|Количество указано на ${recipe.baseServings} порц.|">Количество на 2 порции</p>
+						<p class="section-note" th:unless="${recipe.servings == recipe.baseServings}"
+						   th:text="|Пересчитано на ${recipe.servings} порц. Базовый рецепт — на ${recipe.baseServings}.|">
+							Пересчитано на 4 порции
+						</p>
+					</div>
+					<form class="portion-form" th:action="@{/recipes/{id}(id=${recipe.id})}" method="get">
+						<label for="servings">Порций</label>
+						<input id="servings" name="servings" type="number" min="1" max="100" required
+							   th:value="${recipe.servings}">
+						<button class="button button--secondary" type="submit">Пересчитать</button>
+					</form>
+				</div>
+				<p class="form-error portion-error" role="alert" th:if="${portionError}" th:text="${portionError}">
+					Количество порций должно быть от 1 до 100
+				</p>
 				<ul class="ingredient-list">
 					<li th:each="ingredient : ${recipe.ingredients}">
 						<span th:text="${ingredient.name}">Ингредиент</span>

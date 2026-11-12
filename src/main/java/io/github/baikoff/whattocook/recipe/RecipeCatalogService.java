@@ -3,6 +3,7 @@ package io.github.baikoff.whattocook.recipe;
 import java.math.BigDecimal;
 import java.util.List;
 
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,10 +12,15 @@ public class RecipeCatalogService {
 
 	private final RecipeRepository recipeRepository;
 	private final RecipeImageStorage imageStorage;
+	private final RecipePortionCalculator portionCalculator;
 
-	public RecipeCatalogService(RecipeRepository recipeRepository, RecipeImageStorage imageStorage) {
+	public RecipeCatalogService(
+			RecipeRepository recipeRepository,
+			RecipeImageStorage imageStorage,
+			RecipePortionCalculator portionCalculator) {
 		this.recipeRepository = recipeRepository;
 		this.imageStorage = imageStorage;
+		this.portionCalculator = portionCalculator;
 	}
 
 	@Transactional(readOnly = true)
@@ -27,7 +33,14 @@ public class RecipeCatalogService {
 
 	@Transactional(readOnly = true)
 	public List<RecipeCatalogItem> getCatalog() {
-		return recipeRepository.findAllByStatusNotOrderByNameRuAsc(RecipeStatus.ARCHIVED)
+		return search(RecipeSearchCriteria.empty());
+	}
+
+	@Transactional(readOnly = true)
+	public List<RecipeCatalogItem> search(RecipeSearchCriteria criteria) {
+		return recipeRepository.findAll(
+				RecipeSpecifications.matches(criteria),
+				Sort.by(Sort.Direction.ASC, "nameRu"))
 				.stream()
 				.map(this::toCatalogItem)
 				.toList();
@@ -35,10 +48,15 @@ public class RecipeCatalogService {
 
 	@Transactional(readOnly = true)
 	public RecipeDetails getRecipe(long id) {
+		return getRecipe(id, null);
+	}
+
+	@Transactional(readOnly = true)
+	public RecipeDetails getRecipe(long id, Integer requestedServings) {
 		var recipe = recipeRepository.findByIdAndStatusNot(id, RecipeStatus.ARCHIVED)
 				.orElseThrow(() -> new RecipeNotFoundException(id));
 
-		return toDetails(recipe);
+		return toDetails(recipe, requestedServings);
 	}
 
 	private RecipeCatalogItem toCatalogItem(Recipe recipe) {
@@ -54,12 +72,16 @@ public class RecipeCatalogService {
 				recipe.getStatus().getDisplayName());
 	}
 
-	private RecipeDetails toDetails(Recipe recipe) {
+	private RecipeDetails toDetails(Recipe recipe, Integer requestedServings) {
+		var servings = portionCalculator.resolveServings(requestedServings, recipe.getServings());
 		var ingredients = recipe.getIngredients()
 				.stream()
 				.map(recipeIngredient -> new RecipeDetails.IngredientLine(
 						recipeIngredient.getIngredient().getNameRu(),
-						formatAmount(recipeIngredient.getAmount()),
+						formatAmount(portionCalculator.recalculate(
+								recipeIngredient.getAmount(),
+								recipe.getServings(),
+								servings)),
 						recipeIngredient.getUnit().getDisplayName(),
 						recipeIngredient.isOptional()))
 				.toList();
@@ -89,6 +111,7 @@ public class RecipeCatalogService {
 				recipe.getDescription(),
 				imageStorage.publicUrl(recipe.getMainImagePath()),
 				recipe.getServings(),
+				servings,
 				recipe.getPreparationMinutes(),
 				recipe.getCookingMinutes(),
 				totalMinutes(recipe),

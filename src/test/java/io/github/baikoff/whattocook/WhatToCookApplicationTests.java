@@ -35,7 +35,9 @@ import io.github.baikoff.whattocook.recipe.RecipeForm;
 import io.github.baikoff.whattocook.recipe.RecipeFormValidator;
 import io.github.baikoff.whattocook.recipe.RecipeImageStorage;
 import io.github.baikoff.whattocook.recipe.RecipeManagementService;
+import io.github.baikoff.whattocook.recipe.RecipeMatchingService;
 import io.github.baikoff.whattocook.recipe.RecipeNotFoundException;
+import io.github.baikoff.whattocook.recipe.RecipeSearchCriteria;
 import io.github.baikoff.whattocook.recipe.RecipeStatus;
 
 @SpringBootTest(
@@ -55,6 +57,9 @@ class WhatToCookApplicationTests {
 
 	@Autowired
 	private RecipeManagementService recipeManagementService;
+
+	@Autowired
+	private RecipeMatchingService recipeMatchingService;
 
 	@Autowired
 	private RecipeFormValidator recipeFormValidator;
@@ -95,6 +100,145 @@ class WhatToCookApplicationTests {
 	}
 
 	@Test
+	void catalogSearchMatchesNamesAndIngredientsIgnoringCase() {
+		var byEnglishName = recipeCatalogService.search(
+				new RecipeSearchCriteria("BUCKWHEAT", null, null, null, null));
+		var byIngredient = recipeCatalogService.search(
+				new RecipeSearchCriteria("паприк", null, null, null, null));
+
+		assertThat(byEnglishName)
+				.extracting(item -> item.nameRu())
+				.containsExactly("Гречка с тушёной курицей");
+		assertThat(byIngredient)
+				.extracting(item -> item.nameRu())
+				.containsExactly("Картофель, запечённый в духовке");
+	}
+
+	@Test
+	void catalogFiltersCanBeCombined() {
+		var ovenId = recipeManagementService.getEquipmentOptions().stream()
+				.filter(item -> item.name().equals("Электродуховка"))
+				.findFirst()
+				.orElseThrow()
+				.id();
+		var bakingId = recipeManagementService.getCookingMethodOptions().stream()
+				.filter(item -> item.name().equals("Запекание"))
+				.findFirst()
+				.orElseThrow()
+				.id();
+
+		var recipes = recipeCatalogService.search(
+				new RecipeSearchCriteria("картофель", 50, Difficulty.EASY, ovenId, bakingId));
+
+		assertThat(recipes)
+				.extracting(item -> item.nameRu())
+				.containsExactly("Картофель, запечённый в духовке");
+	}
+
+	@Test
+	void catalogPageKeepsSearchParametersAndExplainsEmptyResult() throws IOException, InterruptedException {
+		var searchResponse = get("/recipes?query=Buckwheat");
+		var emptyResponse = get("/recipes?maxMinutes=49");
+
+		assertThat(searchResponse.statusCode()).isEqualTo(200);
+		assertThat(searchResponse.body())
+				.contains("Найдено рецептов: 1")
+				.contains("value=\"Buckwheat\"")
+				.contains("Гречка с тушёной курицей")
+				.doesNotContain("Картофель, запечённый в духовке");
+		assertThat(emptyResponse.statusCode()).isEqualTo(200);
+		assertThat(emptyResponse.body())
+				.contains("Найдено рецептов: 0")
+				.contains("По заданным условиям рецепты не найдены")
+				.contains("Сбросить");
+	}
+
+	@Test
+	void matchingRanksCompleteRecipeFirstAndShowsMissingIngredients() {
+		var selectedIds = ingredientIds(
+				"Картофель",
+				"Растительное масло",
+				"Паприка",
+				"Чеснок",
+				"Соль");
+
+		var matching = recipeMatchingService.match(selectedIds);
+		var potatoRecipe = matching.recipes().getFirst();
+		var buckwheatRecipe = matching.recipes().stream()
+				.filter(recipe -> recipe.nameRu().equals("Гречка с тушёной курицей"))
+				.findFirst()
+				.orElseThrow();
+
+		assertThat(potatoRecipe.nameRu()).isEqualTo("Картофель, запечённый в духовке");
+		assertThat(potatoRecipe.matchPercentage()).isEqualTo(100);
+		assertThat(potatoRecipe.canCook()).isTrue();
+		assertThat(potatoRecipe.missingIngredients()).isEmpty();
+		assertThat(buckwheatRecipe.matchedIngredientCount()).isEqualTo(2);
+		assertThat(buckwheatRecipe.requiredIngredientCount()).isEqualTo(7);
+		assertThat(buckwheatRecipe.matchPercentage()).isEqualTo(29);
+		assertThat(buckwheatRecipe.missingIngredients()).contains("Куриное филе", "Гречка");
+	}
+
+	@Test
+	void matchingHidesRecipesWithoutSelectedRequiredIngredients() {
+		var paprikaId = ingredientIds("Паприка").getFirst();
+
+		var matching = recipeMatchingService.match(java.util.List.of(paprikaId));
+
+		assertThat(matching.recipes())
+				.extracting(recipe -> recipe.nameRu())
+				.containsExactly("Картофель, запечённый в духовке");
+	}
+
+	@Test
+	@Transactional
+	void optionalIngredientsDoNotReduceMatchAndArchivedRecipesAreExcluded() {
+		var form = validRecipeForm();
+		form.getIngredients().getFirst().setName("Обязательная тестовая крупа");
+		var optionalIngredient = new RecipeForm.IngredientRow();
+		optionalIngredient.setName("Необязательная тестовая приправа");
+		optionalIngredient.setAmount(BigDecimal.ONE);
+		optionalIngredient.setUnit(MeasurementUnit.PINCH);
+		optionalIngredient.setOptional(true);
+		form.getIngredients().add(optionalIngredient);
+		var recipeId = recipeManagementService.create(form);
+		var requiredIngredientId = ingredientIds("Обязательная тестовая крупа").getFirst();
+
+		var matchedRecipe = recipeMatchingService.match(java.util.List.of(requiredIngredientId)).recipes().stream()
+				.filter(recipe -> recipe.id().equals(recipeId))
+				.findFirst()
+				.orElseThrow();
+
+		assertThat(matchedRecipe.requiredIngredientCount()).isEqualTo(1);
+		assertThat(matchedRecipe.matchPercentage()).isEqualTo(100);
+		assertThat(matchedRecipe.missingIngredients()).isEmpty();
+
+		recipeManagementService.archive(recipeId);
+		assertThat(recipeMatchingService.match(java.util.List.of(requiredIngredientId)).recipes()).isEmpty();
+	}
+
+	@Test
+	void matchingPagePromptsForProductsAndDisplaysCalculatedResults() throws IOException, InterruptedException {
+		var paprikaId = ingredientIds("Паприка").getFirst();
+
+		var emptyResponse = get("/recipes/match");
+		var matchingResponse = get("/recipes/match?ingredientIds=" + paprikaId);
+
+		assertThat(emptyResponse.statusCode()).isEqualTo(200);
+		assertThat(emptyResponse.body())
+				.contains("Выбери хотя бы один продукт")
+				.contains("Найти продукт в списке");
+		assertThat(matchingResponse.statusCode()).isEqualTo(200);
+		assertThat(matchingResponse.body())
+				.contains("Результаты подбора")
+				.contains("Картофель, запечённый в духовке")
+				.contains("Не хватает:")
+				.contains("aria-valuenow")
+				.doesNotContain("Гречка с тушёной курицей")
+				.doesNotContain("Рис с овощами в мультиварке");
+	}
+
+	@Test
 	void recipePageShowsIngredientsAndSteps() throws IOException, InterruptedException {
 		var recipe = recipeCatalogService.getCatalog()
 				.stream()
@@ -110,6 +254,42 @@ class WhatToCookApplicationTests {
 				.contains("300")
 				.contains("Тушение")
 				.contains("Промыть гречку");
+	}
+
+	@Test
+	void recipePageRecalculatesIngredientsForSelectedServings() throws IOException, InterruptedException {
+		var recipe = recipeCatalogService.getCatalog()
+				.stream()
+				.filter(item -> item.nameRu().equals("Гречка с тушёной курицей"))
+				.findFirst()
+				.orElseThrow();
+
+		var recalculatedRecipe = recipeCatalogService.getRecipe(recipe.id(), 3);
+		var chicken = recalculatedRecipe.ingredients()
+				.stream()
+				.filter(ingredient -> ingredient.name().equals("Куриное филе"))
+				.findFirst()
+				.orElseThrow();
+		var response = get("/recipes/" + recipe.id() + "?servings=3");
+
+		assertThat(recalculatedRecipe.baseServings()).isEqualTo(2);
+		assertThat(recalculatedRecipe.servings()).isEqualTo(3);
+		assertThat(chicken.amount()).isEqualTo("450");
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.body())
+				.contains("Пересчитано на 3 порц.")
+				.contains("value=\"3\"")
+				.contains("450");
+	}
+
+	@Test
+	void recipePageShowsErrorForUnsupportedServingCount() throws IOException, InterruptedException {
+		var recipeId = recipeCatalogService.getCatalog().getFirst().id();
+
+		var response = get("/recipes/" + recipeId + "?servings=0");
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.body()).contains("Количество порций должно быть от 1 до 100");
 	}
 
 	@Test
@@ -150,6 +330,18 @@ class WhatToCookApplicationTests {
 				.contains("Добавить шаг");
 		assertThat(editResponse.statusCode()).isEqualTo(200);
 		assertThat(editResponse.body()).contains("Редактирование рецепта");
+	}
+
+	@Test
+	void invalidRecipeFormShowsErrorSummary() throws IOException, InterruptedException {
+		var response = postForm("/recipes/new", "");
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.body())
+				.contains("data-error-summary")
+				.contains("Рецепт не сохранён")
+				.contains("Укажи русское название")
+				.contains("Добавь описание");
 	}
 
 	@Test
@@ -218,6 +410,16 @@ class WhatToCookApplicationTests {
 		return form;
 	}
 
+	private java.util.List<Long> ingredientIds(String... names) {
+		var requestedNames = java.util.Set.of(names);
+		var ids = recipeMatchingService.match(null).ingredients().stream()
+				.filter(ingredient -> requestedNames.contains(ingredient.name()))
+				.map(ingredient -> ingredient.id())
+				.toList();
+		assertThat(ids).hasSize(requestedNames.size());
+		return ids;
+	}
+
 	private MockMultipartFile validPng() throws IOException {
 		var image = new BufferedImage(2, 2, BufferedImage.TYPE_INT_RGB);
 		var output = new ByteArrayOutputStream();
@@ -230,6 +432,17 @@ class WhatToCookApplicationTests {
 		var request = HttpRequest.newBuilder()
 				.uri(URI.create("http://127.0.0.1:" + port + path))
 				.GET()
+				.build();
+
+		return client.send(request, HttpResponse.BodyHandlers.ofString());
+	}
+
+	private HttpResponse<String> postForm(String path, String body) throws IOException, InterruptedException {
+		var client = HttpClient.newHttpClient();
+		var request = HttpRequest.newBuilder()
+				.uri(URI.create("http://127.0.0.1:" + port + path))
+				.header("Content-Type", "application/x-www-form-urlencoded")
+				.POST(HttpRequest.BodyPublishers.ofString(body))
 				.build();
 
 		return client.send(request, HttpResponse.BodyHandlers.ofString());

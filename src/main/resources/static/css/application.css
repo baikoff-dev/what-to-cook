@@ -107,6 +107,165 @@ h2 {
 	gap: 1.25rem;
 }
 
+.catalog-filters {
+	display: grid;
+	grid-template-columns: minmax(15rem, 2fr) repeat(4, minmax(9rem, 1fr));
+	gap: 1rem;
+	align-items: end;
+	margin-bottom: 1.5rem;
+	padding: 1.25rem;
+	border: 1px solid #e1d8ca;
+	border-radius: 1rem;
+	background: #fff;
+}
+
+.catalog-filters .field {
+	margin-bottom: 0;
+}
+
+.catalog-filters__actions {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+	grid-column: 1 / -1;
+}
+
+.catalog-filters button {
+	border: 0;
+	font: inherit;
+	cursor: pointer;
+}
+
+.matching-form {
+	margin-bottom: 2.5rem;
+	padding: 1.5rem;
+	border: 1px solid #e1d8ca;
+	border-radius: 1rem;
+	background: #fff;
+}
+
+.matching-form__heading {
+	display: flex;
+	justify-content: space-between;
+	align-items: end;
+	gap: 2rem;
+	margin-bottom: 1rem;
+}
+
+.matching-form__heading .field {
+	width: min(100%, 28rem);
+	margin-bottom: 0;
+}
+
+.ingredient-picker {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+	gap: 0.65rem;
+	max-height: 22rem;
+	overflow-y: auto;
+	padding: 0.25rem;
+}
+
+.ingredient-choice {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	padding: 0.7rem;
+	border: 1px solid #d7cec2;
+	border-radius: 0.55rem;
+	background: #fffdf8;
+	cursor: pointer;
+}
+
+.ingredient-choice[hidden] {
+	display: none;
+}
+
+.ingredient-choice:has(input:checked) {
+	border-color: #a14d2f;
+	background: #f8e8dd;
+}
+
+.matching-form__actions {
+	margin-top: 1.25rem;
+}
+
+.matching-form__actions button {
+	border: 0;
+	font: inherit;
+	cursor: pointer;
+}
+
+.matching-results {
+	margin-top: 2rem;
+}
+
+.match-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+	gap: 1.25rem;
+}
+
+.match-card {
+	overflow: hidden;
+	border: 1px solid #e1d8ca;
+	border-radius: 1rem;
+	background: #fff;
+	box-shadow: 0 0.5rem 1.5rem rgb(75 51 35 / 7%);
+}
+
+.match-card__body {
+	padding: 1.25rem;
+}
+
+.match-card__heading {
+	display: flex;
+	justify-content: space-between;
+	gap: 1rem;
+}
+
+.match-card__heading h3 {
+	margin-top: 0;
+}
+
+.match-card__heading a {
+	color: #2a241f;
+	text-decoration: none;
+}
+
+.match-percentage {
+	color: #8f3f25;
+	font-size: 1.25rem;
+}
+
+.match-progress {
+	height: 0.5rem;
+	margin-bottom: 1rem;
+	overflow: hidden;
+	border-radius: 999px;
+	background: #ebe4d9;
+}
+
+.match-progress span {
+	display: block;
+	height: 100%;
+	background: #b95f38;
+}
+
+.match-summary {
+	font-weight: 700;
+}
+
+.match-ready {
+	color: #315d2a;
+	font-weight: 700;
+}
+
+.missing-ingredients {
+	margin-top: 0.4rem;
+	padding-left: 1.25rem;
+}
+
 .recipe-card {
 	overflow: hidden;
 	border: 1px solid #e1d8ca;
@@ -471,15 +630,41 @@ h2 {
 	color: #a13030 !important;
 }
 
-.form-error--global {
+.form-error-summary {
+	margin-bottom: 1.5rem;
 	padding: 1rem;
 	border: 1px solid #d9a0a0;
 	border-radius: 0.6rem;
 	background: #fff0f0;
+	color: #7f2020;
 }
 
-.form-error--global p:last-child {
+.form-error-summary p {
+	margin: 0.35rem 0 0;
+}
+
+.form-error-summary ul {
 	margin-bottom: 0;
+}
+
+.form-error-summary:focus {
+	outline: 0.18rem solid #d78686;
+	outline-offset: 0.15rem;
+
+}
+
+.field input[aria-invalid="true"],
+.field textarea[aria-invalid="true"],
+.field select[aria-invalid="true"] {
+	border-color: #a13030;
+	box-shadow: 0 0 0 0.12rem #f2c8c8;
+}
+
+.check-group.validation-error,
+.dynamic-row.validation-error,
+.form-section.validation-error {
+	border-color: #d78686;
+	box-shadow: 0 0 0 0.12rem #f2c8c8;
 }
 
 .check-group {
@@ -553,6 +738,41 @@ h2 {
 	justify-content: flex-end;
 }
 
+.portion-heading {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 1rem;
+	margin-bottom: 1rem;
+}
+
+.portion-heading h2,
+.portion-heading .section-note {
+	margin-bottom: 0;
+}
+
+.portion-form {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+}
+
+.portion-form label {
+	font-weight: 700;
+}
+
+.portion-form input {
+	width: 5rem;
+	padding: 0.65rem;
+	border: 1px solid #bdb1a4;
+	border-radius: 0.45rem;
+	font: inherit;
+}
+
+.portion-error {
+	margin-top: -0.5rem;
+}
+
 @media (max-width: 48rem) {
 	.page-heading,
 	.recipe-hero {
@@ -573,12 +793,17 @@ h2 {
 
 	.tag-section,
 	.recipe-columns,
+	.catalog-filters,
 	.form-grid--two,
 	.form-grid--five,
 	.ingredient-row,
 	.step-form-row {
 		grid-template-columns: 1fr;
 		gap: 1.5rem;
+	}
+
+	.catalog-filters__actions {
+		grid-column: auto;
 	}
 
 	.check-field--row,
@@ -588,8 +813,16 @@ h2 {
 
 	.page-actions,
 	.details-actions,
-	.section-heading {
+	.section-heading,
+	.portion-heading,
+	.matching-form__heading,
+	.match-card__heading {
 		align-items: flex-start;
 		flex-direction: column;
+	}
+
+	.portion-form {
+		align-items: flex-start;
+		flex-wrap: wrap;
 	}
 }

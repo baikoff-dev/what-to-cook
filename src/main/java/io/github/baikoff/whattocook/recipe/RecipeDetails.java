@@ -8,6 +8,7 @@ public record RecipeDetails(
 		String nameEn,
 		String description,
 		String mainImageUrl,
+		int baseServings,
 		int servings,
 		int preparationMinutes,
 		int cookingMinutes,
