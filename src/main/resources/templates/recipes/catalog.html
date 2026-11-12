@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title th:text="|${pageTitle} — Что приготовить?|">Каталог рецептов — Что приготовить?</title>
+	<link rel="stylesheet" href="/css/application.css">
+</head>
+<body>
+	<header class="site-header">
+		<a class="brand" href="/">Что приготовить?</a>
+		<nav aria-label="Основная навигация">
+			<a aria-current="page" href="/recipes">Рецепты</a>
+		</nav>
+	</header>
+
+	<main class="page">
+		<div class="page-heading">
+			<div>
+				<p class="eyebrow">Первые блюда</p>
+				<h1 th:text="${pageTitle}">Каталог рецептов</h1>
+			</div>
+			<div class="page-actions">
+				<a class="button" th:unless="${archivedView}" href="/recipes/new">Добавить рецепт</a>
+				<a th:unless="${archivedView}" href="/recipes/archive">Архив</a>
+				<a th:if="${archivedView}" href="/recipes">Вернуться в каталог</a>
+			</div>
+		</div>
+		<p class="flash-message" th:if="${message}" th:text="${message}">Готово</p>
+		<p th:text="|Найдено рецептов: ${#lists.size(recipes)}|">Найдено рецептов: 0</p>
+
+		<p class="empty-state" th:if="${#lists.isEmpty(recipes)}">
+			В каталоге пока нет рецептов.
+		</p>
+
+		<section class="recipe-grid" aria-label="Список рецептов" th:unless="${#lists.isEmpty(recipes)}">
+			<article class="recipe-card" th:each="recipe : ${recipes}">
+				<img class="recipe-card__image" th:if="${recipe.mainImageUrl != null}" th:src="${recipe.mainImageUrl}" alt="">
+				<div class="recipe-card__placeholder" th:unless="${recipe.mainImageUrl != null}" aria-hidden="true">🍲</div>
+				<div class="recipe-card__body">
+					<p class="badge" th:text="${recipe.status}">Не проверен</p>
+					<h2>
+						<a th:href="${archivedView} ? @{/recipes/{id}/edit(id=${recipe.id})} : @{/recipes/{id}(id=${recipe.id})}"
+						   th:text="${recipe.nameRu}">Название</a>
+					</h2>
+					<p class="secondary-name" th:if="${recipe.nameEn != null}" th:text="${recipe.nameEn}">English name</p>
+					<p th:text="${recipe.description}">Описание рецепта</p>
+					<ul class="recipe-facts">
+						<li th:text="|${recipe.totalMinutes} мин|">45 мин</li>
+						<li th:text="|${recipe.servings} порц.|">2 порц.</li>
+						<li th:text="${recipe.difficulty}">Легко</li>
+					</ul>
+					<form class="inline-form" th:if="${archivedView}" th:action="@{/recipes/{id}/restore(id=${recipe.id})}" method="post">
+						<button class="link-button" type="submit">Восстановить</button>
+					</form>
+				</div>
+			</article>
+		</section>
+	</main>
+</body>
+</html>

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title th:text="|${formTitle} — Что приготовить?|">Рецепт — Что приготовить?</title>
+	<link rel="stylesheet" href="/css/application.css">
+	<script defer src="/js/recipe-form.js"></script>
+</head>
+<body>
+	<header class="site-header">
+		<a class="brand" href="/">Что приготовить?</a>
+		<nav aria-label="Основная навигация"><a href="/recipes">Рецепты</a></nav>
+	</header>
+
+	<main class="page form-page">
+		<a class="back-link" th:href="${recipeForm.id == null ? '/recipes' : '/recipes/' + recipeForm.id}">← Отмена</a>
+		<h1 th:text="${formTitle}">Новый рецепт</h1>
+		<p class="form-hint">Поля со звёздочкой обязательны. Изображения JPEG или PNG — не больше 5 МБ.</p>
+
+		<form class="recipe-form" th:object="${recipeForm}" th:action="${formAction}" method="post" enctype="multipart/form-data">
+			<input type="hidden" th:field="*{id}">
+			<input type="hidden" th:field="*{version}">
+
+			<div class="form-error form-error--global" th:if="${#fields.hasGlobalErrors()}">
+				<p th:each="error : ${#fields.globalErrors()}" th:text="${error}">Не удалось сохранить рецепт</p>
+			</div>
+
+			<section class="form-section">
+				<h2>Основная информация</h2>
+				<div class="form-grid form-grid--two">
+					<label class="field">
+						<span>Название на русском *</span>
+						<input type="text" th:field="*{nameRu}" maxlength="200">
+						<small class="form-error" th:errors="*{nameRu}">Ошибка</small>
+					</label>
+					<label class="field">
+						<span>Название на английском</span>
+						<input type="text" th:field="*{nameEn}" maxlength="200">
+						<small class="form-error" th:errors="*{nameEn}">Ошибка</small>
+					</label>
+				</div>
+
+				<label class="field">
+					<span>Описание *</span>
+					<textarea th:field="*{description}" rows="4" maxlength="5000"></textarea>
+					<small class="form-error" th:errors="*{description}">Ошибка</small>
+				</label>
+
+				<div class="form-grid form-grid--five">
+					<label class="field">
+						<span>Порции *</span>
+						<input type="number" th:field="*{servings}" min="1" max="100">
+						<small class="form-error" th:errors="*{servings}">Ошибка</small>
+					</label>
+					<label class="field">
+						<span>Подготовка, мин *</span>
+						<input type="number" th:field="*{preparationMinutes}" min="0" max="1440">
+						<small class="form-error" th:errors="*{preparationMinutes}">Ошибка</small>
+					</label>
+					<label class="field">
+						<span>Приготовление, мин *</span>
+						<input type="number" th:field="*{cookingMinutes}" min="0" max="1440">
+						<small class="form-error" th:errors="*{cookingMinutes}">Ошибка</small>
+					</label>
+					<label class="field">
+						<span>Сложность *</span>
+						<select th:field="*{difficulty}">
+							<option th:each="item : ${difficultyOptions}" th:value="${item}" th:text="${item.displayName}">Легко</option>
+						</select>
+					</label>
+					<label class="field">
+						<span>Статус *</span>
+						<select th:field="*{status}">
+							<option th:each="item : ${statusOptions}" th:value="${item}" th:text="${item.displayName}">Не проверен</option>
+						</select>
+					</label>
+				</div>
+			</section>
+
+			<section class="form-section">
+				<h2>Основное изображение</h2>
+				<div class="current-image" th:if="*{existingMainImagePath != null}">
+					<img th:src="${'/user-images/' + recipeForm.existingMainImagePath}" alt="Текущее изображение блюда">
+					<label class="check-field">
+						<input type="checkbox" th:field="*{removeMainImage}">
+						<span>Удалить текущее изображение</span>
+					</label>
+				</div>
+				<input type="hidden" th:field="*{existingMainImagePath}">
+				<label class="field">
+					<span>Новое изображение</span>
+					<input type="file" th:field="*{mainImage}" accept="image/jpeg,image/png">
+					<small>При выборе нового файла он заменит текущее изображение.</small>
+					<small class="form-error" th:errors="*{mainImage}">Ошибка</small>
+				</label>
+			</section>
+
+			<section class="form-section">
+				<h2>Оборудование и способы</h2>
+				<div class="form-grid form-grid--two">
+					<fieldset class="check-group">
+						<legend>Оборудование *</legend>
+						<label class="check-field" th:each="item : ${equipmentOptions}">
+							<input type="checkbox" th:field="*{equipmentIds}" th:value="${item.id}">
+							<span th:text="${item.name}">Оборудование</span>
+						</label>
+						<small class="form-error" th:errors="*{equipmentIds}">Ошибка</small>
+					</fieldset>
+					<fieldset class="check-group">
+						<legend>Способы приготовления *</legend>
+						<label class="check-field" th:each="item : ${cookingMethodOptions}">
+							<input type="checkbox" th:field="*{cookingMethodIds}" th:value="${item.id}">
+							<span th:text="${item.name}">Способ</span>
+						</label>
+						<small class="form-error" th:errors="*{cookingMethodIds}">Ошибка</small>
+					</fieldset>
+				</div>
+			</section>
+
+			<section class="form-section">
+				<div class="section-heading">
+					<div><h2>Ингредиенты *</h2><p>Одинаковый ингредиент нельзя добавить дважды.</p></div>
+					<button class="button button--secondary" type="button" data-add-row="ingredient">Добавить ингредиент</button>
+				</div>
+				<small class="form-error" th:errors="*{ingredients}">Ошибка</small>
+				<div class="dynamic-list" data-row-list="ingredient">
+					<div class="dynamic-row ingredient-row" data-row th:each="ingredient, stat : *{ingredients}">
+						<strong class="row-title" th:text="|Ингредиент ${stat.count}|">Ингредиент 1</strong>
+						<label class="field">
+							<span>Название</span>
+							<input type="text" th:field="*{ingredients[__${stat.index}__].name}" maxlength="150">
+							<small class="form-error" th:errors="*{ingredients[__${stat.index}__].name}">Ошибка</small>
+						</label>
+						<label class="field field--small">
+							<span>Количество</span>
+							<input type="number" th:field="*{ingredients[__${stat.index}__].amount}" min="0.001" step="0.001">
+							<small class="form-error" th:errors="*{ingredients[__${stat.index}__].amount}">Ошибка</small>
+						</label>
+						<label class="field field--small">
+							<span>Единица</span>
+							<select th:field="*{ingredients[__${stat.index}__].unit}">
+								<option value="">Выбери</option>
+								<option th:each="unit : ${unitOptions}" th:value="${unit}" th:text="${unit.displayName}">г</option>
+							</select>
+							<small class="form-error" th:errors="*{ingredients[__${stat.index}__].unit}">Ошибка</small>
+						</label>
+						<label class="check-field check-field--row">
+							<input type="checkbox" th:field="*{ingredients[__${stat.index}__].optional}">
+							<span>Необязательный</span>
+						</label>
+						<button class="remove-button" type="button" data-remove-row>Убрать</button>
+					</div>
+				</div>
+			</section>
+
+			<section class="form-section">
+				<div class="section-heading">
+					<div><h2>Шаги приготовления *</h2><p>Порядок строк определяет порядок шагов.</p></div>
+					<button class="button button--secondary" type="button" data-add-row="step">Добавить шаг</button>
+				</div>
+				<small class="form-error" th:errors="*{steps}">Ошибка</small>
+				<div class="dynamic-list" data-row-list="step">
+					<div class="dynamic-row step-form-row" data-row th:each="step, stat : *{steps}">
+						<strong class="row-title" th:text="|Шаг ${stat.count}|">Шаг 1</strong>
+						<input type="hidden" th:field="*{steps[__${stat.index}__].id}">
+						<input type="hidden" th:field="*{steps[__${stat.index}__].existingImagePath}">
+						<label class="field">
+							<span>Описание</span>
+							<textarea th:field="*{steps[__${stat.index}__].instruction}" rows="3" maxlength="5000"></textarea>
+							<small class="form-error" th:errors="*{steps[__${stat.index}__].instruction}">Ошибка</small>
+						</label>
+						<div class="step-image-editor">
+							<img th:if="${step.existingImagePath != null}" th:src="${'/user-images/' + step.existingImagePath}" alt="Текущее изображение шага">
+							<label class="check-field" th:if="${step.existingImagePath != null}">
+								<input type="checkbox" th:field="*{steps[__${stat.index}__].removeImage}">
+								<span>Удалить изображение</span>
+							</label>
+							<label class="field">
+								<span>Новое изображение шага</span>
+								<input type="file" th:field="*{steps[__${stat.index}__].image}" accept="image/jpeg,image/png">
+								<small class="form-error" th:errors="*{steps[__${stat.index}__].image}">Ошибка</small>
+							</label>
+						</div>
+						<button class="remove-button" type="button" data-remove-row>Убрать шаг</button>
+					</div>
+				</div>
+			</section>
+
+			<section class="form-section">
+				<h2>Источник и личная заметка</h2>
+				<div class="form-grid form-grid--two">
+					<label class="field"><span>Название источника</span><input type="text" th:field="*{sourceName}" maxlength="300"><small class="form-error" th:errors="*{sourceName}">Ошибка</small></label>
+					<label class="field"><span>Ссылка</span><input type="url" th:field="*{sourceUrl}" maxlength="1000" placeholder="https://"><small class="form-error" th:errors="*{sourceUrl}">Ошибка</small></label>
+				</div>
+				<label class="field"><span>Личная заметка</span><textarea th:field="*{personalNotes}" rows="3" maxlength="5000"></textarea><small class="form-error" th:errors="*{personalNotes}">Ошибка</small></label>
+			</section>
+
+			<div class="form-actions">
+				<button class="button" type="submit">Сохранить рецепт</button>
+				<a th:href="${recipeForm.id == null ? '/recipes' : '/recipes/' + recipeForm.id}">Отмена</a>
+			</div>
+		</form>
+	</main>
+
+	<template id="ingredient-row-template">
+		<div class="dynamic-row ingredient-row" data-row>
+			<strong class="row-title">Ингредиент __NUMBER__</strong>
+			<label class="field"><span>Название</span><input type="text" name="ingredients[__INDEX__].name" maxlength="150"></label>
+			<label class="field field--small"><span>Количество</span><input type="number" name="ingredients[__INDEX__].amount" min="0.001" step="0.001"></label>
+			<label class="field field--small"><span>Единица</span><select name="ingredients[__INDEX__].unit"><option value="">Выбери</option><option th:each="unit : ${unitOptions}" th:value="${unit}" th:text="${unit.displayName}">г</option></select></label>
+			<label class="check-field check-field--row"><input type="checkbox" name="ingredients[__INDEX__].optional" value="true"><span>Необязательный</span></label>
+			<button class="remove-button" type="button" data-remove-row>Убрать</button>
+		</div>
+	</template>
+
+	<template id="step-row-template">
+		<div class="dynamic-row step-form-row" data-row>
+			<strong class="row-title">Шаг __NUMBER__</strong>
+			<input type="hidden" name="steps[__INDEX__].id"><input type="hidden" name="steps[__INDEX__].existingImagePath">
+			<label class="field"><span>Описание</span><textarea name="steps[__INDEX__].instruction" rows="3" maxlength="5000"></textarea></label>
+			<div class="step-image-editor"><label class="field"><span>Изображение шага</span><input type="file" name="steps[__INDEX__].image" accept="image/jpeg,image/png"></label></div>
+			<button class="remove-button" type="button" data-remove-row>Убрать шаг</button>
+		</div>
+	</template>
+</body>
+</html>

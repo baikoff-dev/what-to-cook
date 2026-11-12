@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title th:text="|${recipe.nameRu} — Что приготовить?|">Рецепт — Что приготовить?</title>
+	<link rel="stylesheet" href="/css/application.css">
+</head>
+<body>
+	<header class="site-header">
+		<a class="brand" href="/">Что приготовить?</a>
+		<nav aria-label="Основная навигация">
+			<a href="/recipes">Рецепты</a>
+		</nav>
+	</header>
+
+	<main class="page recipe-details">
+		<div class="details-actions">
+			<a class="back-link" href="/recipes">← Вернуться в каталог</a>
+			<div>
+				<a class="button button--secondary" th:href="@{/recipes/{id}/edit(id=${recipe.id})}">Редактировать</a>
+				<form class="inline-form" th:action="@{/recipes/{id}/archive(id=${recipe.id})}" method="post">
+					<button class="danger-button" type="submit">В архив</button>
+				</form>
+			</div>
+		</div>
+		<p class="flash-message" th:if="${message}" th:text="${message}">Готово</p>
+
+		<section class="recipe-hero">
+			<div>
+				<p class="badge" th:text="${recipe.status}">Не проверен</p>
+				<h1 th:text="${recipe.nameRu}">Название рецепта</h1>
+				<p class="secondary-name" th:if="${recipe.nameEn != null}" th:text="${recipe.nameEn}">English name</p>
+				<p class="lead" th:text="${recipe.description}">Описание</p>
+			</div>
+			<img class="recipe-main-image" th:if="${recipe.mainImageUrl != null}" th:src="${recipe.mainImageUrl}"
+				 th:alt="|Готовое блюдо: ${recipe.nameRu}|">
+			<div class="recipe-image-placeholder" th:unless="${recipe.mainImageUrl != null}"
+				 aria-label="Изображение рецепта пока не добавлено">🍽️</div>
+		</section>
+
+		<dl class="details-facts">
+			<div>
+				<dt>Подготовка</dt>
+				<dd th:text="|${recipe.preparationMinutes} мин|">15 мин</dd>
+			</div>
+			<div>
+				<dt>Приготовление</dt>
+				<dd th:text="|${recipe.cookingMinutes} мин|">30 мин</dd>
+			</div>
+			<div>
+				<dt>Общее время</dt>
+				<dd th:text="|${recipe.totalMinutes} мин|">45 мин</dd>
+			</div>
+			<div>
+				<dt>Порции</dt>
+				<dd th:text="${recipe.servings}">2</dd>
+			</div>
+			<div>
+				<dt>Сложность</dt>
+				<dd th:text="${recipe.difficulty}">Легко</dd>
+			</div>
+		</dl>
+
+		<section class="tag-section">
+			<div>
+				<h2>Оборудование</h2>
+				<ul class="tags">
+					<li th:each="item : ${recipe.equipment}" th:text="${item}">Электрическая плита</li>
+				</ul>
+			</div>
+			<div>
+				<h2>Способ приготовления</h2>
+				<ul class="tags">
+					<li th:each="item : ${recipe.cookingMethods}" th:text="${item}">Тушение</li>
+				</ul>
+			</div>
+		</section>
+
+		<div class="recipe-columns">
+			<section>
+				<h2>Ингредиенты</h2>
+				<p class="section-note" th:text="|Количество указано на ${recipe.servings} порц.|">Количество на 2 порции</p>
+				<ul class="ingredient-list">
+					<li th:each="ingredient : ${recipe.ingredients}">
+						<span th:text="${ingredient.name}">Ингредиент</span>
+						<strong>
+							<span th:text="${ingredient.amount}">100</span>
+							<span th:text="${ingredient.unit}">г</span>
+							<small th:if="${ingredient.optional}">необязательно</small>
+						</strong>
+					</li>
+				</ul>
+			</section>
+
+			<section>
+				<h2>Приготовление</h2>
+				<ol class="step-list">
+					<li th:each="step : ${recipe.steps}">
+						<span class="step-number" th:text="${step.number}">1</span>
+						<div>
+							<p th:text="${step.instruction}">Описание шага</p>
+							<img class="step-image" th:if="${step.imageUrl != null}" th:src="${step.imageUrl}"
+								 th:alt="|Иллюстрация шага ${step.number}|">
+						</div>
+					</li>
+				</ol>
+			</section>
+		</div>
+
+		<section class="recipe-notes" th:if="${recipe.personalNotes != null}">
+			<h2>Личная заметка</h2>
+			<p th:text="${recipe.personalNotes}">Заметка</p>
+		</section>
+
+		<footer class="recipe-source" th:if="${recipe.sourceName != null}">
+			<span>Источник:</span>
+			<a th:if="${recipe.sourceUrl != null}" th:href="${recipe.sourceUrl}" th:text="${recipe.sourceName}">Источник</a>
+			<span th:unless="${recipe.sourceUrl != null}" th:text="${recipe.sourceName}">Источник</span>
+		</footer>
+	</main>
+</body>
+</html>

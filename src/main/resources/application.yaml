@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: what-to-cook
+
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 50MB
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/what_to_cook}
+    username: ${DB_USERNAME:what_to_cook}
+    password: ${DB_PASSWORD:what_to_cook}
+
+  flyway:
+    validate-on-migrate: true
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+server:
+  address: 127.0.0.1
+
+app:
+  images:
+    directory: ${IMAGES_DIRECTORY:data/images}

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Рецепт не найден — Что приготовить?</title>
+	<link rel="stylesheet" href="/css/application.css">
+</head>
+<body>
+	<main class="error-page">
+		<p class="eyebrow">Ошибка 404</p>
+		<h1>Рецепт не найден</h1>
+		<p th:text="${message}">Возможно, рецепт был удалён или перемещён в архив.</p>
+		<a class="button" href="/recipes">Вернуться в каталог</a>
+	</main>
+</body>
+</html>
