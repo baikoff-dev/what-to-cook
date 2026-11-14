@@ -8,10 +8,7 @@
 	<script defer src="/js/recipe-form.js"></script>
 </head>
 <body>
-	<header class="site-header">
-		<a class="brand" href="/">Что приготовить?</a>
-		<nav aria-label="Основная навигация"><a href="/recipes">Рецепты</a></nav>
-	</header>
+	<header th:replace="~{fragments/navigation :: siteHeader('recipes')}"></header>
 
 	<main class="page form-page">
 		<a class="back-link" th:href="${recipeForm.id == null ? '/recipes' : '/recipes/' + recipeForm.id}">← Отмена</a>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>История приготовления — Что приготовить?</title>
+	<link rel="stylesheet" href="/css/application.css">
+</head>
+<body>
+	<header th:replace="~{fragments/navigation :: siteHeader('history')}"></header>
+
+	<main class="page">
+		<div class="page-heading">
+			<div>
+				<p class="eyebrow">Личный опыт</p>
+				<h1>История приготовления</h1>
+				<p class="lead">Здесь сохраняются оценки и заметки после каждого приготовления.</p>
+			</div>
+			<a href="/recipes">Выбрать рецепт</a>
+		</div>
+		<p class="flash-message" th:if="${message}" th:text="${message}">Готово</p>
+
+		<p class="empty-state" th:if="${#lists.isEmpty(history)}">
+			История пока пуста. Открой рецепт и нажми «Отметить приготовленным».
+		</p>
+
+		<section class="history-list" aria-label="История приготовления" th:unless="${#lists.isEmpty(history)}">
+			<article class="history-card" th:each="entry : ${history}">
+				<div class="history-card__heading">
+					<div>
+						<p class="history-date" th:text="${#temporals.format(entry.cookedOn, 'dd.MM.yyyy')}">12.11.2026</p>
+						<h2>
+							<a th:unless="${entry.archived}" th:href="@{/recipes/{id}(id=${entry.recipeId})}"
+							   th:text="${entry.recipeName}">Название рецепта</a>
+							<span th:if="${entry.archived}" th:text="${entry.recipeName}">Название рецепта</span>
+						</h2>
+					</div>
+					<span class="badge" th:if="${entry.archived}">В архиве</span>
+				</div>
+				<p class="history-rating" th:if="${entry.rating != null}" th:text="|Оценка: ${entry.rating} из 5|">Оценка: 5 из 5</p>
+				<p class="history-rating" th:unless="${entry.rating != null}">Без оценки</p>
+				<p class="history-note" th:if="${entry.note != null}" th:text="${entry.note}">Заметка</p>
+				<form th:action="@{/recipes/history/{id}/delete(id=${entry.id})}" method="post">
+					<button class="danger-button" type="submit"
+							th:attr="aria-label=|Удалить запись о приготовлении: ${entry.recipeName}|">Удалить запись</button>
+				</form>
+			</article>
+		</section>
+	</main>
+</body>
+</html>

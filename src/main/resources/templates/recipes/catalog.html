@@ -7,12 +7,7 @@
 	<link rel="stylesheet" href="/css/application.css">
 </head>
 <body>
-	<header class="site-header">
-		<a class="brand" href="/">Что приготовить?</a>
-		<nav aria-label="Основная навигация">
-			<a aria-current="page" href="/recipes">Рецепты</a>
-		</nav>
-	</header>
+	<header th:replace="~{fragments/navigation :: siteHeader(${favoritesView} ? 'favorites' : 'recipes')}"></header>
 
 	<main class="page">
 		<div class="page-heading">
@@ -21,15 +16,19 @@
 				<h1 th:text="${pageTitle}">Каталог рецептов</h1>
 			</div>
 			<div class="page-actions">
-				<a class="button" th:unless="${archivedView}" href="/recipes/new">Добавить рецепт</a>
-				<a th:unless="${archivedView}" href="/recipes/match">Подбор по продуктам</a>
-				<a th:unless="${archivedView}" href="/recipes/archive">Архив</a>
+				<a class="button" th:if="${catalogView}" href="/recipes/new">Добавить рецепт</a>
+				<a th:if="${catalogView}" href="/recipes/match">Подбор по продуктам</a>
+				<a th:if="${catalogView}" href="/recipes/favorites">Избранное</a>
+				<a th:if="${catalogView}" href="/recipes/history">История</a>
+				<a th:if="${catalogView}" href="/preferences/restrictions">Ограничения</a>
+				<a th:if="${catalogView}" href="/recipes/archive">Архив</a>
+				<a th:if="${favoritesView}" href="/recipes">Вернуться в каталог</a>
 				<a th:if="${archivedView}" href="/recipes">Вернуться в каталог</a>
 			</div>
 		</div>
 		<p class="flash-message" th:if="${message}" th:text="${message}">Готово</p>
 
-		<form class="catalog-filters" th:unless="${archivedView}" th:action="@{/recipes}" method="get"
+		<form class="catalog-filters" th:if="${catalogView}" th:action="@{/recipes}" method="get"
 			  aria-label="Поиск и фильтры рецептов">
 			<label class="field catalog-filters__query">
 				<span>Название или ингредиент</span>
@@ -71,11 +70,14 @@
 			</div>
 		</form>
 
-		<p th:text="|Найдено рецептов: ${#lists.size(recipes)}|">Найдено рецептов: 0</p>
+		<p th:if="${favoritesView}" th:text="|Рецептов в избранном: ${#lists.size(recipes)}|">Рецептов в избранном: 0</p>
+		<p th:unless="${favoritesView}" th:text="|Найдено рецептов: ${#lists.size(recipes)}|">Найдено рецептов: 0</p>
 
 		<p class="empty-state" th:if="${#lists.isEmpty(recipes)}">
-			<span th:if="${filtersApplied}">По заданным условиям рецепты не найдены. Попробуй изменить или сбросить фильтры.</span>
-			<span th:unless="${filtersApplied}">В каталоге пока нет рецептов.</span>
+			<span th:if="${favoritesView}">В избранном пока нет рецептов. Добавь понравившиеся блюда из каталога.</span>
+			<span th:if="${catalogView && filtersApplied}">По заданным условиям рецепты не найдены. Попробуй изменить или сбросить фильтры.</span>
+			<span th:if="${catalogView && !filtersApplied}">В каталоге пока нет рецептов.</span>
+			<span th:if="${archivedView}">В архиве пока нет рецептов.</span>
 		</p>
 
 		<section class="recipe-grid" aria-label="Список рецептов" th:unless="${#lists.isEmpty(recipes)}">
@@ -83,7 +85,32 @@
 				<img class="recipe-card__image" th:if="${recipe.mainImageUrl != null}" th:src="${recipe.mainImageUrl}" alt="">
 				<div class="recipe-card__placeholder" th:unless="${recipe.mainImageUrl != null}" aria-hidden="true">🍲</div>
 				<div class="recipe-card__body">
-					<p class="badge" th:text="${recipe.status}">Не проверен</p>
+					<div class="recipe-card__toolbar">
+						<p class="badge" th:text="${recipe.status}">Не проверен</p>
+						<form class="inline-form" th:if="${!archivedView && !recipe.favorite}"
+							  th:action="@{/recipes/{id}/favorite(id=${recipe.id})}" method="post">
+							<input type="hidden" name="returnTo"
+								   th:value="${favoritesView} ? '/recipes/favorites' : '/recipes'">
+							<button class="favorite-button" type="submit" aria-label="Добавить рецепт в избранное">♡ В избранное</button>
+						</form>
+						<form class="inline-form" th:if="${!archivedView && recipe.favorite}"
+							  th:action="@{/recipes/{id}/favorite/remove(id=${recipe.id})}" method="post">
+							<input type="hidden" name="returnTo"
+								   th:value="${favoritesView} ? '/recipes/favorites' : '/recipes'">
+							<button class="favorite-button favorite-button--active" type="submit"
+									aria-label="Удалить рецепт из избранного">♥ В избранном</button>
+						</form>
+					</div>
+					<div class="restriction-summary" th:unless="${#lists.isEmpty(recipe.restrictionWarnings)}">
+						<strong>Есть ограничение</strong>
+						<ul>
+							<li th:each="warning : ${recipe.restrictionWarnings}">
+								<span th:text="${warning.ingredientName}">Ингредиент</span>
+								<span th:if="${warning.optional}"> (необязательный)</span>
+								<span th:if="${warning.note != null}" th:text="| — ${warning.note}|"> — заметка</span>
+							</li>
+						</ul>
+					</div>
 					<h2>
 						<a th:href="${archivedView} ? @{/recipes/{id}/edit(id=${recipe.id})} : @{/recipes/{id}(id=${recipe.id})}"
 						   th:text="${recipe.nameRu}">Название</a>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,12 +7,16 @@
 	<link rel="stylesheet" href="/css/application.css">
 </head>
 <body>
+	<header th:replace="~{fragments/navigation :: siteHeader('home')}"></header>
 	<main class="welcome">
 		<p class="eyebrow">What to Cook?</p>
 		<h1>Что приготовить?</h1>
 		<p>Личный помощник для поиска и подбора рецептов.</p>
 		<p class="status">Каталог уже содержит первые демонстрационные рецепты.</p>
-		<a class="button" href="/recipes">Открыть каталог</a>
+		<div class="welcome-actions">
+			<a class="button" href="/recipes">Открыть каталог</a>
+			<a class="button button--secondary" href="/preferences/restrictions">Настроить ограничения</a>
+		</div>
 	</main>
 </body>
 </html>

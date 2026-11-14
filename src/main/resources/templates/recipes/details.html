@@ -7,17 +7,23 @@
 	<link rel="stylesheet" href="/css/application.css">
 </head>
 <body>
-	<header class="site-header">
-		<a class="brand" href="/">Что приготовить?</a>
-		<nav aria-label="Основная навигация">
-			<a href="/recipes">Рецепты</a>
-		</nav>
-	</header>
+	<header th:replace="~{fragments/navigation :: siteHeader('recipes')}"></header>
 
 	<main class="page recipe-details">
 		<div class="details-actions">
 			<a class="back-link" href="/recipes">← Вернуться в каталог</a>
 			<div>
+				<a class="button button--secondary" th:href="@{/recipes/{id}/cookings/new(id=${recipe.id})}">Отметить приготовленным</a>
+				<form class="inline-form" th:if="${!recipe.favorite}"
+					  th:action="@{/recipes/{id}/favorite(id=${recipe.id})}" method="post">
+					<input type="hidden" name="returnTo" th:value="|/recipes/${recipe.id}|">
+					<button class="favorite-button" type="submit">♡ Добавить в избранное</button>
+				</form>
+				<form class="inline-form" th:if="${recipe.favorite}"
+					  th:action="@{/recipes/{id}/favorite/remove(id=${recipe.id})}" method="post">
+					<input type="hidden" name="returnTo" th:value="|/recipes/${recipe.id}|">
+					<button class="favorite-button favorite-button--active" type="submit">♥ В избранном</button>
+				</form>
 				<a class="button button--secondary" th:href="@{/recipes/{id}/edit(id=${recipe.id})}">Редактировать</a>
 				<form class="inline-form" th:action="@{/recipes/{id}/archive(id=${recipe.id})}" method="post">
 					<button class="danger-button" type="submit">В архив</button>
@@ -25,6 +31,22 @@
 			</div>
 		</div>
 		<p class="flash-message" th:if="${message}" th:text="${message}">Готово</p>
+
+		<section class="restriction-alert" th:if="${!#lists.isEmpty(recipe.restrictionWarnings)}"
+				 th:classappend="${recipe.excludedByRestriction} ? ' restriction-alert--exclude'">
+			<h2 th:text="${recipe.excludedByRestriction} ? 'Рецепт исключён личным правилом' : 'Обрати внимание на ограничения'">
+				Обрати внимание на ограничения
+			</h2>
+			<p th:if="${recipe.excludedByRestriction}">Этот рецепт скрыт из каталога, избранного и подбора.</p>
+			<ul>
+				<li th:each="warning : ${recipe.restrictionWarnings}">
+					<strong th:text="|${warning.ingredientName}: ${warning.modeName}|">Ингредиент: режим</strong>
+					<span th:if="${warning.optional}"> — необязательный ингредиент</span>
+					<span th:if="${warning.note != null}" th:text="| — ${warning.note}|"> — заметка</span>
+				</li>
+			</ul>
+			<a href="/preferences/restrictions">Изменить ограничения</a>
+		</section>
 
 		<section class="recipe-hero">
 			<div>

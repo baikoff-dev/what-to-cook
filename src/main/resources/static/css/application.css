@@ -40,6 +40,12 @@ h2 {
 	padding: 2rem;
 }
 
+.welcome-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+}
+
 .eyebrow {
 	color: #a14d2f;
 	font-weight: 700;
@@ -79,6 +85,11 @@ h2 {
 
 .site-header nav a {
 	font-weight: 700;
+}
+
+.site-header nav {
+	display: flex;
+	gap: 1rem;
 }
 
 .brand {
@@ -297,6 +308,13 @@ h2 {
 	padding: 1.25rem;
 }
 
+.recipe-card__toolbar {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 0.75rem;
+}
+
 .recipe-card h2 a {
 	color: #2a241f;
 	text-decoration: none;
@@ -395,6 +413,29 @@ h2 {
 .link-button {
 	padding: 0;
 	color: #8f3f25;
+}
+
+.favorite-button {
+	padding: 0.4rem 0.65rem;
+	border: 1px solid #c98972;
+	border-radius: 999px;
+	background: #fff;
+	color: #8f3f25;
+	font: inherit;
+	font-size: 0.85rem;
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.favorite-button:hover,
+.favorite-button:focus-visible {
+	background: #f8e8dd;
+}
+
+.favorite-button--active {
+	border-color: #a13c3c;
+	background: #fff0f0;
+	color: #8b2525;
 }
 
 .flash-message {
@@ -555,6 +596,141 @@ h2 {
 
 .form-page {
 	max-width: 68rem;
+}
+
+.cooking-form-page {
+	max-width: 42rem;
+}
+
+.history-list {
+	display: grid;
+	gap: 1rem;
+}
+
+.history-card {
+	padding: 1.25rem;
+	border: 1px solid #e1d8ca;
+	border-radius: 1rem;
+	background: #fff;
+	box-shadow: 0 0.5rem 1.5rem rgb(75 51 35 / 7%);
+}
+
+.history-card__heading {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 1rem;
+}
+
+.history-card h2 {
+	margin-bottom: 0.5rem;
+}
+
+.history-date {
+	margin-bottom: 0.25rem;
+	color: #756b63;
+	font-weight: 700;
+}
+
+.history-rating {
+	color: #8f3f25;
+	font-weight: 700;
+}
+
+.history-note {
+	white-space: pre-wrap;
+}
+
+.restrictions-page {
+	max-width: 64rem;
+}
+
+.restriction-disclaimer,
+.restriction-alert,
+.restriction-summary {
+	padding: 1rem;
+	border: 1px solid #d6a85f;
+	border-radius: 0.7rem;
+	background: #fff8e8;
+	color: #694617;
+}
+
+.restriction-disclaimer {
+	margin-bottom: 1.5rem;
+}
+
+.restriction-form {
+	margin-bottom: 2.5rem;
+	padding: 1.5rem;
+	border: 1px solid #e1d8ca;
+	border-radius: 1rem;
+	background: #fff;
+}
+
+.restriction-rules {
+	margin-top: 2rem;
+}
+
+.restriction-rule-list {
+	display: grid;
+	gap: 1rem;
+}
+
+.restriction-rule {
+	display: flex;
+	justify-content: space-between;
+	gap: 1.5rem;
+	padding: 1.25rem;
+	border: 1px solid #e1d8ca;
+	border-radius: 0.8rem;
+	background: #fff;
+}
+
+.restriction-rule h3 {
+	margin: 0;
+}
+
+.restriction-rule__actions {
+	display: flex;
+	align-items: flex-start;
+	gap: 1rem;
+}
+
+.restriction-mode {
+	display: inline-block;
+	margin: 0.4rem 0;
+	padding: 0.2rem 0.55rem;
+	border-radius: 999px;
+	background: #fff1c7;
+	font-size: 0.85rem;
+	font-weight: 700;
+}
+
+.restriction-mode--exclude {
+	background: #ffe0e0;
+	color: #8b2525;
+}
+
+.restriction-summary {
+	margin-bottom: 1rem;
+	padding: 0.75rem;
+	font-size: 0.9rem;
+}
+
+.restriction-summary ul,
+.restriction-alert ul {
+	margin-bottom: 0;
+	padding-left: 1.25rem;
+}
+
+.restriction-alert {
+	margin-bottom: 2rem;
+}
+
+.restriction-alert--exclude {
+	border-color: #c96f6f;
+	background: #fff0f0;
+	color: #772525;
 }
 
 .form-hint {
@@ -817,6 +993,16 @@ h2 {
 	.portion-heading,
 	.matching-form__heading,
 	.match-card__heading {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+
+	.history-card__heading {
+		flex-direction: column;
+	}
+
+	.restriction-rule,
+	.restriction-rule__actions {
 		align-items: flex-start;
 		flex-direction: column;
 	}

@@ -8,12 +8,7 @@
 	<script defer src="/js/ingredient-match.js"></script>
 </head>
 <body>
-	<header class="site-header">
-		<a class="brand" href="/">Что приготовить?</a>
-		<nav aria-label="Основная навигация">
-			<a href="/recipes">Рецепты</a>
-		</nav>
-	</header>
+	<header th:replace="~{fragments/navigation :: siteHeader('recipes')}"></header>
 
 	<main class="page">
 		<a class="back-link" href="/recipes">← Вернуться в каталог</a>
@@ -64,6 +59,16 @@
 					<img class="recipe-card__image" th:if="${recipe.mainImageUrl != null}" th:src="${recipe.mainImageUrl}" alt="">
 					<div class="recipe-card__placeholder" th:unless="${recipe.mainImageUrl != null}" aria-hidden="true">🍲</div>
 					<div class="match-card__body">
+						<div class="restriction-summary" th:unless="${#lists.isEmpty(recipe.restrictionWarnings)}">
+							<strong>Есть ограничение</strong>
+							<ul>
+								<li th:each="warning : ${recipe.restrictionWarnings}">
+									<span th:text="${warning.ingredientName}">Ингредиент</span>
+									<span th:if="${warning.optional}"> (необязательный)</span>
+									<span th:if="${warning.note != null}" th:text="| — ${warning.note}|"> — заметка</span>
+								</li>
+							</ul>
+						</div>
 						<div class="match-card__heading">
 							<h3><a th:href="@{/recipes/{id}(id=${recipe.id})}" th:text="${recipe.nameRu}">Название</a></h3>
 							<strong class="match-percentage" th:text="|${recipe.matchPercentage}%|">75%</strong>

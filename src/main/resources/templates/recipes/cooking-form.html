@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title th:text="|Отметить приготовление — ${recipe.nameRu}|">Отметить приготовление — Что приготовить?</title>
+	<link rel="stylesheet" href="/css/application.css">
+</head>
+<body>
+	<header th:replace="~{fragments/navigation :: siteHeader('history')}"></header>
+
+	<main class="page cooking-form-page">
+		<a class="back-link" th:href="@{/recipes/{id}(id=${recipe.id})}">← Вернуться к рецепту</a>
+		<p class="eyebrow">История приготовления</p>
+		<h1>Отметить приготовление</h1>
+		<p class="lead" th:text="${recipe.nameRu}">Название рецепта</p>
+
+		<form class="recipe-form" th:object="${cookingRecordForm}"
+			  th:action="@{/recipes/{id}/cookings/new(id=${recipe.id})}" method="post">
+			<div class="form-error-summary" role="alert" tabindex="-1"
+				 th:if="${#fields.hasAnyErrors()}">
+				<strong>Запись не сохранена</strong>
+				<p>Проверь отмеченные поля.</p>
+				<ul>
+					<li th:each="error : ${#fields.allErrors()}" th:text="${error}">Исправь ошибку</li>
+				</ul>
+			</div>
+
+			<section class="form-section">
+				<label class="field">
+					<span>Дата приготовления *</span>
+					<input type="date" th:field="*{cookedOn}" required>
+					<small class="form-error" th:errors="*{cookedOn}">Ошибка</small>
+				</label>
+
+				<label class="field">
+					<span>Оценка</span>
+					<select th:field="*{rating}">
+						<option value="">Без оценки</option>
+						<option th:each="value : ${#numbers.sequence(1, 5)}" th:value="${value}"
+								th:text="|${value} из 5|">5 из 5</option>
+					</select>
+					<small class="form-error" th:errors="*{rating}">Ошибка</small>
+				</label>
+
+				<label class="field">
+					<span>Заметка</span>
+					<textarea th:field="*{note}" rows="5" maxlength="2000"
+							  placeholder="Что получилось хорошо или что изменить в следующий раз"></textarea>
+					<small class="form-error" th:errors="*{note}">Ошибка</small>
+				</label>
+			</section>
+
+			<div class="form-actions">
+				<button class="button" type="submit">Добавить в историю</button>
+				<a th:href="@{/recipes/{id}(id=${recipe.id})}">Отмена</a>
+			</div>
+		</form>
+	</main>
+</body>
+</html>
