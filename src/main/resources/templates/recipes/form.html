@@ -49,6 +49,24 @@
 					<small class="form-error" th:errors="*{description}">Ошибка</small>
 				</label>
 
+				<div class="form-grid form-grid--two">
+					<label class="field">
+						<span>Кухня *</span>
+						<select th:field="*{cuisineId}">
+							<option value="">Выбери кухню</option>
+							<option th:each="item : ${cuisineOptions}" th:value="${item.id}" th:text="${item.name}">Кухня</option>
+						</select>
+						<small class="form-error" th:errors="*{cuisineId}">Ошибка</small>
+					</label>
+					<label class="field">
+						<span>Происхождение рецепта *</span>
+						<select th:field="*{origin}">
+							<option th:each="item : ${originOptions}" th:value="${item}" th:text="${item.displayName}">Личный</option>
+						</select>
+						<small class="form-error" th:errors="*{origin}">Ошибка</small>
+					</label>
+				</div>
+
 				<div class="form-grid form-grid--five">
 					<label class="field">
 						<span>Порции *</span>
@@ -78,6 +96,60 @@
 						</select>
 					</label>
 				</div>
+			</section>
+
+			<section class="form-section">
+				<div class="section-heading">
+					<div>
+						<h2>Допустимые замены</h2>
+						<p>Замена относится к одному из ингредиентов рецепта. Укажи, как она изменит вкус или классический характер блюда.</p>
+					</div>
+					<button class="button button--secondary" type="button" data-add-row="substitution">Добавить замену</button>
+				</div>
+				<div class="dynamic-list" data-row-list="substitution">
+					<div class="dynamic-row substitution-row" data-row th:each="substitution, stat : *{substitutions}">
+						<strong class="row-title" th:text="|Замена ${stat.count}|">Замена 1</strong>
+						<label class="field">
+							<span>Что заменяем *</span>
+							<input type="text" th:field="*{substitutions[__${stat.index}__].originalIngredientName}" maxlength="150" list="recipe-ingredient-names">
+							<small class="form-error" th:errors="*{substitutions[__${stat.index}__].originalIngredientName}">Ошибка</small>
+						</label>
+						<label class="field">
+							<span>Чем заменяем *</span>
+							<input type="text" th:field="*{substitutions[__${stat.index}__].substituteIngredientName}" maxlength="150">
+							<small class="form-error" th:errors="*{substitutions[__${stat.index}__].substituteIngredientName}">Ошибка</small>
+						</label>
+						<label class="field field--small">
+							<span>Количество *</span>
+							<input type="number" th:field="*{substitutions[__${stat.index}__].amount}" min="0.001" step="0.001">
+							<small class="form-error" th:errors="*{substitutions[__${stat.index}__].amount}">Ошибка</small>
+						</label>
+						<label class="field field--small">
+							<span>Единица *</span>
+							<select th:field="*{substitutions[__${stat.index}__].unit}">
+								<option value="">Выбери</option>
+								<option th:each="unit : ${unitOptions}" th:value="${unit}" th:text="${unit.displayName}">г</option>
+							</select>
+							<small class="form-error" th:errors="*{substitutions[__${stat.index}__].unit}">Ошибка</small>
+						</label>
+						<label class="field">
+							<span>Тип замены *</span>
+							<select th:field="*{substitutions[__${stat.index}__].type}">
+								<option th:each="item : ${substitutionTypeOptions}" th:value="${item}" th:text="${item.displayName}">Близкая замена</option>
+							</select>
+							<small class="form-error" th:errors="*{substitutions[__${stat.index}__].type}">Ошибка</small>
+						</label>
+						<label class="field substitution-row__note">
+							<span>Как изменится блюдо *</span>
+							<textarea th:field="*{substitutions[__${stat.index}__].impactNote}" rows="2" maxlength="1000"></textarea>
+							<small class="form-error" th:errors="*{substitutions[__${stat.index}__].impactNote}">Ошибка</small>
+						</label>
+						<button class="remove-button" type="button" data-remove-row>Убрать замену</button>
+					</div>
+				</div>
+				<datalist id="recipe-ingredient-names">
+					<option th:each="ingredient : *{ingredients}" th:value="${ingredient.name}"></option>
+				</datalist>
 			</section>
 
 			<section class="form-section">
@@ -213,6 +285,19 @@
 			<label class="field field--small"><span>Единица</span><select name="ingredients[__INDEX__].unit"><option value="">Выбери</option><option th:each="unit : ${unitOptions}" th:value="${unit}" th:text="${unit.displayName}">г</option></select></label>
 			<label class="check-field check-field--row"><input type="checkbox" name="ingredients[__INDEX__].optional" value="true"><span>Необязательный</span></label>
 			<button class="remove-button" type="button" data-remove-row>Убрать</button>
+		</div>
+	</template>
+
+	<template id="substitution-row-template">
+		<div class="dynamic-row substitution-row" data-row>
+			<strong class="row-title">Замена __NUMBER__</strong>
+			<label class="field"><span>Что заменяем *</span><input type="text" name="substitutions[__INDEX__].originalIngredientName" maxlength="150" list="recipe-ingredient-names"></label>
+			<label class="field"><span>Чем заменяем *</span><input type="text" name="substitutions[__INDEX__].substituteIngredientName" maxlength="150"></label>
+			<label class="field field--small"><span>Количество *</span><input type="number" name="substitutions[__INDEX__].amount" min="0.001" step="0.001"></label>
+			<label class="field field--small"><span>Единица *</span><select name="substitutions[__INDEX__].unit"><option value="">Выбери</option><option th:each="unit : ${unitOptions}" th:value="${unit}" th:text="${unit.displayName}">г</option></select></label>
+			<label class="field"><span>Тип замены *</span><select name="substitutions[__INDEX__].type"><option th:each="item : ${substitutionTypeOptions}" th:value="${item}" th:text="${item.displayName}">Близкая замена</option></select></label>
+			<label class="field substitution-row__note"><span>Как изменится блюдо *</span><textarea name="substitutions[__INDEX__].impactNote" rows="2" maxlength="1000"></textarea></label>
+			<button class="remove-button" type="button" data-remove-row>Убрать замену</button>
 		</div>
 	</template>
 

@@ -3,7 +3,9 @@ package io.github.baikoff.whattocook.recipe.service.model;
 import io.github.baikoff.whattocook.recipe.domain.Difficulty;
 import io.github.baikoff.whattocook.recipe.domain.MeasurementUnit;
 import io.github.baikoff.whattocook.recipe.domain.Recipe;
+import io.github.baikoff.whattocook.recipe.domain.RecipeOrigin;
 import io.github.baikoff.whattocook.recipe.domain.RecipeStatus;
+import io.github.baikoff.whattocook.recipe.domain.SubstitutionType;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -56,6 +58,12 @@ public class RecipeForm {
 	@NotNull(message = "Выбери статус")
 	private RecipeStatus status = RecipeStatus.UNTESTED;
 
+	@NotNull(message = "Выбери кухню")
+	private Long cuisineId;
+
+	@NotNull(message = "Выбери происхождение рецепта")
+	private RecipeOrigin origin = RecipeOrigin.PERSONAL;
+
 	@Size(max = 300, message = "Название источника должно быть не длиннее 300 символов")
 	private String sourceName;
 
@@ -72,13 +80,13 @@ public class RecipeForm {
 	@NotEmpty(message = "Выбери хотя бы один способ приготовления")
 	private List<Long> cookingMethodIds = new ArrayList<>();
 
-	@Valid
 	@NotEmpty(message = "Добавь хотя бы один ингредиент")
-	private List<IngredientRow> ingredients = new ArrayList<>();
+	private List<@Valid IngredientRow> ingredients = new ArrayList<>();
 
-	@Valid
+	private List<@Valid SubstitutionRow> substitutions = new ArrayList<>();
+
 	@NotEmpty(message = "Добавь хотя бы один шаг")
-	private List<StepRow> steps = new ArrayList<>();
+	private List<@Valid StepRow> steps = new ArrayList<>();
 
 	private MultipartFile mainImage;
 	private String existingMainImagePath;
@@ -171,6 +179,22 @@ public class RecipeForm {
 		this.status = status;
 	}
 
+	public Long getCuisineId() {
+		return cuisineId;
+	}
+
+	public void setCuisineId(Long cuisineId) {
+		this.cuisineId = cuisineId;
+	}
+
+	public RecipeOrigin getOrigin() {
+		return origin;
+	}
+
+	public void setOrigin(RecipeOrigin origin) {
+		this.origin = origin;
+	}
+
 	public String getSourceName() {
 		return sourceName;
 	}
@@ -217,6 +241,14 @@ public class RecipeForm {
 
 	public void setIngredients(List<IngredientRow> ingredients) {
 		this.ingredients = ingredients;
+	}
+
+	public List<SubstitutionRow> getSubstitutions() {
+		return substitutions;
+	}
+
+	public void setSubstitutions(List<SubstitutionRow> substitutions) {
+		this.substitutions = substitutions;
 	}
 
 	public List<StepRow> getSteps() {
@@ -350,6 +382,80 @@ public class RecipeForm {
 
 		public void setRemoveImage(boolean removeImage) {
 			this.removeImage = removeImage;
+		}
+	}
+
+	public static class SubstitutionRow {
+
+		@NotBlank(message = "Укажи заменяемый ингредиент")
+		@Size(max = 150, message = "Название должно быть не длиннее 150 символов")
+		private String originalIngredientName;
+
+		@NotBlank(message = "Укажи ингредиент для замены")
+		@Size(max = 150, message = "Название должно быть не длиннее 150 символов")
+		private String substituteIngredientName;
+
+		@NotNull(message = "Укажи количество замены")
+		@DecimalMin(value = "0.001", message = "Количество должно быть больше нуля")
+		@Digits(integer = 7, fraction = 3, message = "Допустимо не больше трёх знаков после запятой")
+		private BigDecimal amount;
+
+		@NotNull(message = "Выбери единицу измерения")
+		private MeasurementUnit unit;
+
+		@NotNull(message = "Выбери тип замены")
+		private SubstitutionType type = SubstitutionType.CLOSE;
+
+		@NotBlank(message = "Опиши, как замена повлияет на блюдо")
+		@Size(max = 1000, message = "Описание влияния должно быть не длиннее 1000 символов")
+		private String impactNote;
+
+		public String getOriginalIngredientName() {
+			return originalIngredientName;
+		}
+
+		public void setOriginalIngredientName(String originalIngredientName) {
+			this.originalIngredientName = originalIngredientName;
+		}
+
+		public String getSubstituteIngredientName() {
+			return substituteIngredientName;
+		}
+
+		public void setSubstituteIngredientName(String substituteIngredientName) {
+			this.substituteIngredientName = substituteIngredientName;
+		}
+
+		public BigDecimal getAmount() {
+			return amount;
+		}
+
+		public void setAmount(BigDecimal amount) {
+			this.amount = amount;
+		}
+
+		public MeasurementUnit getUnit() {
+			return unit;
+		}
+
+		public void setUnit(MeasurementUnit unit) {
+			this.unit = unit;
+		}
+
+		public SubstitutionType getType() {
+			return type;
+		}
+
+		public void setType(SubstitutionType type) {
+			this.type = type;
+		}
+
+		public String getImpactNote() {
+			return impactNote;
+		}
+
+		public void setImpactNote(String impactNote) {
+			this.impactNote = impactNote;
 		}
 	}
 }

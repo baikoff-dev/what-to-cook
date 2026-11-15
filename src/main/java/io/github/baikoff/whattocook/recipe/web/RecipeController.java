@@ -6,7 +6,9 @@ import io.github.baikoff.whattocook.recipe.domain.Difficulty;
 import io.github.baikoff.whattocook.recipe.domain.MeasurementUnit;
 import io.github.baikoff.whattocook.recipe.domain.Recipe;
 import io.github.baikoff.whattocook.recipe.domain.RecipeSearchCriteria;
+import io.github.baikoff.whattocook.recipe.domain.RecipeOrigin;
 import io.github.baikoff.whattocook.recipe.domain.RecipeStatus;
+import io.github.baikoff.whattocook.recipe.domain.SubstitutionType;
 import io.github.baikoff.whattocook.recipe.service.model.RecipeForm;
 import io.github.baikoff.whattocook.recipe.service.RecipeCatalogService;
 import io.github.baikoff.whattocook.recipe.service.RecipeConflictException;
@@ -65,13 +67,24 @@ public class RecipeController {
 			@RequestParam(required = false) Difficulty difficulty,
 			@RequestParam(required = false) Long equipmentId,
 			@RequestParam(required = false) Long cookingMethodId,
+			@RequestParam(required = false) Long cuisineId,
+			@RequestParam(required = false) RecipeOrigin origin,
 			Model model) {
-		var search = new RecipeSearchCriteria(query, maxMinutes, difficulty, equipmentId, cookingMethodId);
+		var search = new RecipeSearchCriteria(
+				query,
+				maxMinutes,
+				difficulty,
+				equipmentId,
+				cookingMethodId,
+				cuisineId,
+				origin);
 		model.addAttribute("recipes", recipeCatalogService.search(search));
 		model.addAttribute("search", search);
 		model.addAttribute("filtersApplied", search.hasFilters());
 		model.addAttribute("equipmentOptions", recipeManagementService.getEquipmentOptions());
 		model.addAttribute("cookingMethodOptions", recipeManagementService.getCookingMethodOptions());
+		model.addAttribute("cuisineOptions", recipeManagementService.getCuisineOptions());
+		model.addAttribute("originOptions", RecipeOrigin.values());
 		model.addAttribute("difficultyOptions", Difficulty.values());
 		model.addAttribute("pageTitle", "Каталог рецептов");
 		model.addAttribute("archivedView", false);
@@ -222,12 +235,15 @@ public class RecipeController {
 		model.addAttribute("formAction", formAction);
 		model.addAttribute("equipmentOptions", recipeManagementService.getEquipmentOptions());
 		model.addAttribute("cookingMethodOptions", recipeManagementService.getCookingMethodOptions());
+		model.addAttribute("cuisineOptions", recipeManagementService.getCuisineOptions());
 		model.addAttribute("difficultyOptions", Difficulty.values());
+		model.addAttribute("originOptions", RecipeOrigin.values());
 		model.addAttribute("statusOptions", List.of(
 				RecipeStatus.UNTESTED,
 				RecipeStatus.TESTED,
 				RecipeStatus.NEEDS_CHANGES));
 		model.addAttribute("unitOptions", MeasurementUnit.values());
+		model.addAttribute("substitutionTypeOptions", SubstitutionType.values());
 	}
 
 	private String resolveReturnPath(long recipeId, String returnTo) {

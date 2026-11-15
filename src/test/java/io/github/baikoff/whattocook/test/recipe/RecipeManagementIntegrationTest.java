@@ -45,6 +45,8 @@ import io.github.baikoff.whattocook.recipe.service.RecipeNotFoundException;
 import io.github.baikoff.whattocook.restriction.service.RecipeRestrictionService;
 import io.github.baikoff.whattocook.recipe.domain.RecipeSearchCriteria;
 import io.github.baikoff.whattocook.recipe.domain.RecipeStatus;
+import io.github.baikoff.whattocook.recipe.domain.RecipeOrigin;
+import io.github.baikoff.whattocook.recipe.domain.SubstitutionType;
 import io.github.baikoff.whattocook.restriction.domain.RestrictionMode;
 
 
@@ -63,9 +65,43 @@ class RecipeManagementIntegrationTest extends AbstractIntegrationTest {
 		assertThat(createResponse.body())
 				.contains("Новый рецепт")
 				.contains("Добавить ингредиент")
-				.contains("Добавить шаг");
+				.contains("Добавить шаг")
+				.contains("Допустимые замены")
+				.contains("Происхождение рецепта");
 		assertThat(editResponse.statusCode()).isEqualTo(200);
 		assertThat(editResponse.body()).contains("Редактирование рецепта");
+	}
+
+	@Test
+	@Transactional
+	void recipeStoresCuisineOriginAndIngredientSubstitution() {
+		var form = validRecipeForm();
+		var italianCuisine = recipeManagementService.getCuisineOptions().stream()
+				.filter(option -> option.name().equals("Итальянская"))
+				.findFirst()
+				.orElseThrow();
+		form.setCuisineId(italianCuisine.id());
+		form.setOrigin(RecipeOrigin.CLASSIC);
+
+		var substitution = new RecipeForm.SubstitutionRow();
+		substitution.setOriginalIngredientName("Тестовая крупа");
+		substitution.setSubstituteIngredientName("Другая тестовая крупа");
+		substitution.setAmount(new BigDecimal("120"));
+		substitution.setUnit(MeasurementUnit.GRAM);
+		substitution.setType(SubstitutionType.ADAPTED);
+		substitution.setImpactNote("Вкус станет мягче, а текстура — более рассыпчатой.");
+		form.getSubstitutions().add(substitution);
+
+		var recipeId = recipeManagementService.create(form);
+		var recipe = recipeCatalogService.getRecipe(recipeId, 4);
+		var savedSubstitution = recipe.ingredients().getFirst().substitutions().getFirst();
+
+		assertThat(recipe.cuisine()).isEqualTo("Итальянская");
+		assertThat(recipe.origin()).isEqualTo("Классический");
+		assertThat(savedSubstitution.ingredientName()).isEqualTo("Другая тестовая крупа");
+		assertThat(savedSubstitution.amount()).isEqualTo("240");
+		assertThat(savedSubstitution.type()).isEqualTo("Адаптированный вариант");
+		assertThat(savedSubstitution.impactNote()).contains("текстура");
 	}
 
 	@Test
@@ -126,5 +162,24 @@ class RecipeManagementIntegrationTest extends AbstractIntegrationTest {
 
 		assertThat(errors.getFieldErrors("ingredients[1].name")).isNotEmpty();
 		assertThat(errors.getFieldErrors("mainImage")).isNotEmpty();
+	}
+
+	@Test
+	void formValidatorRejectsInvalidIngredientSubstitution() {
+		var form = validRecipeForm();
+		var substitution = new RecipeForm.SubstitutionRow();
+		substitution.setOriginalIngredientName("Несуществующий ингредиент");
+		substitution.setSubstituteIngredientName("Несуществующий ингредиент");
+		substitution.setAmount(BigDecimal.ONE);
+		substitution.setUnit(MeasurementUnit.GRAM);
+		substitution.setType(SubstitutionType.CLOSE);
+		substitution.setImpactNote("Проверка валидации");
+		form.getSubstitutions().add(substitution);
+		var errors = new BeanPropertyBindingResult(form, "recipeForm");
+
+		recipeFormValidator.validate(form, errors);
+
+		assertThat(errors.getFieldErrors("substitutions[0].originalIngredientName")).isNotEmpty();
+		assertThat(errors.getFieldErrors("substitutions[0].substituteIngredientName")).isNotEmpty();
 	}
 }

@@ -5,14 +5,16 @@ public record RecipeSearchCriteria(
 		Integer maxMinutes,
 		Difficulty difficulty,
 		Long equipmentId,
-		Long cookingMethodId) {
+		Long cookingMethodId,
+		Long cuisineId,
+		RecipeOrigin origin) {
 
 	public RecipeSearchCriteria {
 		query = normalizeQuery(query);
 	}
 
 	public static RecipeSearchCriteria empty() {
-		return new RecipeSearchCriteria(null, null, null, null, null);
+		return new RecipeSearchCriteria(null, null, null, null, null, null, null);
 	}
 
 	public boolean hasFilters() {
@@ -20,7 +22,9 @@ public record RecipeSearchCriteria(
 				|| maxMinutes != null
 				|| difficulty != null
 				|| equipmentId != null
-				|| cookingMethodId != null;
+				|| cookingMethodId != null
+				|| cuisineId != null
+				|| origin != null;
 	}
 
 	private static String normalizeQuery(String value) {

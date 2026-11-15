@@ -86,7 +86,7 @@ class RecipeMatchingIntegrationTest extends AbstractIntegrationTest {
 
 		assertThat(matching.recipes())
 				.extracting(recipe -> recipe.nameRu())
-				.containsExactly("Картофель, запечённый в духовке");
+				.containsExactly("Картофель, запечённый в духовке", "Шакшука");
 	}
 
 	@Test

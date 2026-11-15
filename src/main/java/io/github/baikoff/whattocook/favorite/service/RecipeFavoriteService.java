@@ -6,6 +6,8 @@ import io.github.baikoff.whattocook.recipe.domain.RecipeStatus;
 import io.github.baikoff.whattocook.recipe.repository.RecipeRepository;
 import io.github.baikoff.whattocook.recipe.service.RecipeNotFoundException;
 
+import java.util.Set;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,5 +37,10 @@ public class RecipeFavoriteService {
 	@Transactional
 	public void remove(long recipeId) {
 		favoriteRepository.deleteById(recipeId);
+	}
+
+	@Transactional(readOnly = true)
+	public Set<Long> getFavoriteRecipeIds() {
+		return Set.copyOf(favoriteRepository.findAllRecipeIds());
 	}
 }

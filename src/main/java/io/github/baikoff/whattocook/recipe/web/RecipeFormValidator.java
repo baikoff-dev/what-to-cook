@@ -50,6 +50,34 @@ public class RecipeFormValidator implements Validator {
 			}
 		}
 
+		Set<String> substitutionPairs = new HashSet<>();
+		if (form.getSubstitutions() != null) {
+			for (int index = 0; index < form.getSubstitutions().size(); index++) {
+				var row = form.getSubstitutions().get(index);
+				var originalName = normalizeName(row.getOriginalIngredientName());
+				var substituteName = normalizeName(row.getSubstituteIngredientName());
+				if (originalName != null && !ingredientNames.contains(originalName)) {
+					errors.rejectValue(
+							"substitutions[" + index + "].originalIngredientName",
+							"recipe.substitution.original.missing",
+							"Такого ингредиента нет в рецепте");
+				}
+				if (originalName != null && originalName.equals(substituteName)) {
+					errors.rejectValue(
+							"substitutions[" + index + "].substituteIngredientName",
+							"recipe.substitution.same",
+							"Замена должна отличаться от исходного ингредиента");
+				}
+				if (originalName != null && substituteName != null
+						&& !substitutionPairs.add(originalName + "\u0000" + substituteName)) {
+					errors.rejectValue(
+							"substitutions[" + index + "].substituteIngredientName",
+							"recipe.substitution.duplicate",
+							"Такая замена уже добавлена");
+				}
+			}
+		}
+
 		validateImage(form.getMainImage(), "mainImage", errors);
 		if (form.getSteps() != null) {
 			for (int index = 0; index < form.getSteps().size(); index++) {
@@ -61,5 +89,9 @@ public class RecipeFormValidator implements Validator {
 	private void validateImage(org.springframework.web.multipart.MultipartFile file, String field, Errors errors) {
 		imageStorage.validationError(file)
 				.ifPresent(message -> errors.rejectValue(field, "recipe.image.invalid", message));
+	}
+
+	private String normalizeName(String value) {
+		return value == null || value.isBlank() ? null : value.strip().toLowerCase(Locale.ROOT);
 	}
 }

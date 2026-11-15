@@ -45,6 +45,7 @@ import io.github.baikoff.whattocook.recipe.service.RecipeNotFoundException;
 import io.github.baikoff.whattocook.restriction.service.RecipeRestrictionService;
 import io.github.baikoff.whattocook.recipe.domain.RecipeSearchCriteria;
 import io.github.baikoff.whattocook.recipe.domain.RecipeStatus;
+import io.github.baikoff.whattocook.recipe.domain.RecipeOrigin;
 import io.github.baikoff.whattocook.restriction.domain.RestrictionMode;
 
 @SpringBootTest(
@@ -92,6 +93,8 @@ public abstract class AbstractIntegrationTest {
 		form.setCookingMinutes(20);
 		form.setDifficulty(Difficulty.EASY);
 		form.setStatus(RecipeStatus.UNTESTED);
+		form.setCuisineId(recipeManagementService.getCuisineOptions().getFirst().id());
+		form.setOrigin(RecipeOrigin.PERSONAL);
 		form.setEquipmentIds(recipeManagementService.getEquipmentOptions().stream().limit(1).map(item -> item.id()).toList());
 		form.setCookingMethodIds(recipeManagementService.getCookingMethodOptions().stream().limit(1).map(item -> item.id()).toList());
 		form.getIngredients().getFirst().setName("Тестовая крупа");

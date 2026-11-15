@@ -59,6 +59,16 @@ public final class RecipeSpecifications {
 						criteria.cookingMethodId()));
 			}
 
+			if (criteria.cuisineId() != null) {
+				predicates.add(criteriaBuilder.equal(
+						root.get("cuisine").get("id"),
+						criteria.cuisineId()));
+			}
+
+			if (criteria.origin() != null) {
+				predicates.add(criteriaBuilder.equal(root.get("origin"), criteria.origin()));
+			}
+
 			query.distinct(true);
 			return criteriaBuilder.and(predicates.toArray(Predicate[]::new));
 		};

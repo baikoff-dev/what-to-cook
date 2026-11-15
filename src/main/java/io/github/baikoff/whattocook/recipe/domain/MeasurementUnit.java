@@ -13,7 +13,8 @@ public enum MeasurementUnit {
 	CLOVE("зубчик"),
 	SLICE("ломтик"),
 	BUNCH("пучок"),
-	PACKAGE("упаковка");
+	PACKAGE("упаковка"),
+	CUP("стакан");
 
 	private final String displayName;
 

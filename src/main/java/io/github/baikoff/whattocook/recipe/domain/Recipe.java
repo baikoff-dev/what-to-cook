@@ -16,6 +16,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.PrePersist;
@@ -59,6 +60,14 @@ public class Recipe {
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 30)
 	private RecipeStatus status;
+
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "cuisine_id", nullable = false)
+	private Cuisine cuisine;
+
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, length = 30)
+	private RecipeOrigin origin;
 
 	@Column(name = "source_name", length = 300)
 	private String sourceName;
@@ -122,6 +131,8 @@ public class Recipe {
 			int cookingMinutes,
 			Difficulty difficulty,
 			RecipeStatus status,
+			Cuisine cuisine,
+			RecipeOrigin origin,
 			String sourceName,
 			String sourceUrl,
 			String personalNotes) {
@@ -133,6 +144,8 @@ public class Recipe {
 		this.cookingMinutes = cookingMinutes;
 		this.difficulty = difficulty;
 		this.status = status;
+		this.cuisine = cuisine;
+		this.origin = origin;
 		this.sourceName = sourceName;
 		this.sourceUrl = sourceUrl;
 		this.personalNotes = personalNotes;
@@ -152,9 +165,11 @@ public class Recipe {
 		ingredients.clear();
 	}
 
-	public void addIngredient(Ingredient ingredient, java.math.BigDecimal amount, MeasurementUnit unit,
+	public RecipeIngredient addIngredient(Ingredient ingredient, java.math.BigDecimal amount, MeasurementUnit unit,
 			boolean optional, int sortOrder) {
-		ingredients.add(new RecipeIngredient(this, ingredient, amount, unit, optional, sortOrder));
+		var recipeIngredient = new RecipeIngredient(this, ingredient, amount, unit, optional, sortOrder);
+		ingredients.add(recipeIngredient);
+		return recipeIngredient;
 	}
 
 	public void clearSteps() {
@@ -227,6 +242,14 @@ public class Recipe {
 
 	public RecipeStatus getStatus() {
 		return status;
+	}
+
+	public Cuisine getCuisine() {
+		return cuisine;
+	}
+
+	public RecipeOrigin getOrigin() {
+		return origin;
 	}
 
 	public String getSourceName() {

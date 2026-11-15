@@ -125,6 +125,8 @@ public class RecipeCatalogService {
 				recipe.getServings(),
 				recipe.getDifficulty().getDisplayName(),
 				recipe.getStatus().getDisplayName(),
+				recipe.getCuisine().getNameRu(),
+				recipe.getOrigin().getDisplayName(),
 				favoriteIds.contains(recipe.getId()),
 				restrictionWarnings);
 	}
@@ -143,7 +145,18 @@ public class RecipeCatalogService {
 								recipe.getServings(),
 								servings)),
 						recipeIngredient.getUnit().getDisplayName(),
-						recipeIngredient.isOptional()))
+						recipeIngredient.isOptional(),
+						recipeIngredient.getSubstitutions().stream()
+								.map(substitution -> new RecipeDetails.Substitution(
+										substitution.getSubstituteIngredient().getNameRu(),
+										formatAmount(portionCalculator.recalculate(
+												substitution.getAmount(),
+												recipe.getServings(),
+												servings)),
+										substitution.getUnit().getDisplayName(),
+										substitution.getType().getDisplayName(),
+										substitution.getImpactNote()))
+								.toList()))
 				.toList();
 
 		var steps = recipe.getSteps()
@@ -177,6 +190,8 @@ public class RecipeCatalogService {
 				totalMinutes(recipe),
 				recipe.getDifficulty().getDisplayName(),
 				recipe.getStatus().getDisplayName(),
+				recipe.getCuisine().getNameRu(),
+				recipe.getOrigin().getDisplayName(),
 				recipe.getSourceName(),
 				recipe.getSourceUrl(),
 				recipe.getPersonalNotes(),

@@ -5,6 +5,7 @@
 		<a class="brand" href="/">Что приготовить?</a>
 		<nav aria-label="Основная навигация">
 			<a th:attr="aria-current=${activePage == 'recipes'} ? 'page' : null" href="/recipes">Рецепты</a>
+			<a th:attr="aria-current=${activePage == 'assistant'} ? 'page' : null" href="/assistant">Помощник</a>
 			<a th:attr="aria-current=${activePage == 'favorites'} ? 'page' : null" href="/recipes/favorites">Избранное</a>
 			<a th:attr="aria-current=${activePage == 'history'} ? 'page' : null" href="/recipes/history">История</a>
 			<a th:attr="aria-current=${activePage == 'restrictions'} ? 'page' : null" href="/preferences/restrictions">Ограничения</a>

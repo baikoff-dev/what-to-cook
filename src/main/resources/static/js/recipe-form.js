@@ -1,5 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
 	activateValidationFeedback();
+	syncIngredientNameOptions();
 
 	const configurations = {
 		ingredient: {
@@ -9,12 +10,19 @@ document.addEventListener("DOMContentLoaded", () => {
 		step: {
 			list: document.querySelector('[data-row-list="step"]'),
 			template: document.querySelector("#step-row-template")
+		},
+		substitution: {
+			list: document.querySelector('[data-row-list="substitution"]'),
+			template: document.querySelector("#substitution-row-template")
 		}
 	};
 
 	document.querySelectorAll("[data-add-row]").forEach((button) => {
 		button.addEventListener("click", () => {
 			const type = button.dataset.addRow;
+			if (type === "substitution") {
+				syncIngredientNameOptions();
+			}
 			const configuration = configurations[type];
 			const index = configuration.list.querySelectorAll("[data-row]").length;
 			const html = configuration.template.innerHTML
@@ -22,6 +30,12 @@ document.addEventListener("DOMContentLoaded", () => {
 				.replaceAll("__NUMBER__", index + 1);
 			configuration.list.insertAdjacentHTML("beforeend", html);
 		});
+	});
+
+	document.addEventListener("input", (event) => {
+		if (event.target.matches('[name^="ingredients"][name$=".name"]')) {
+			syncIngredientNameOptions();
+		}
 	});
 
 	document.addEventListener("click", (event) => {
@@ -50,9 +64,14 @@ document.addEventListener("DOMContentLoaded", () => {
 	function reindex(list) {
 		const type = list.dataset.rowList;
 		list.querySelectorAll("[data-row]").forEach((row, index) => {
-			row.querySelector(".row-title").textContent = `${type === "step" ? "Шаг" : "Ингредиент"} ${index + 1}`;
+			const titles = {
+				ingredient: "Ингредиент",
+				step: "Шаг",
+				substitution: "Замена"
+			};
+			row.querySelector(".row-title").textContent = `${titles[type]} ${index + 1}`;
 			row.querySelectorAll("[name]").forEach((field) => {
-				field.name = field.name.replace(/(ingredients|steps)\[\d+\]/, `$1[${index}]`);
+				field.name = field.name.replace(/(ingredients|steps|substitutions)\[\d+\]/, `$1[${index}]`);
 			});
 		});
 	}
@@ -93,6 +112,27 @@ document.addEventListener("DOMContentLoaded", () => {
 			firstError.scrollIntoView({ behavior: "smooth", block: "center" });
 			firstControl?.focus({ preventScroll: true });
 		});
+	}
+
+	function syncIngredientNameOptions() {
+		const datalist = document.querySelector("#recipe-ingredient-names");
+		if (!datalist) {
+			return;
+		}
+
+		const names = new Set();
+		document.querySelectorAll('[name^="ingredients"][name$=".name"]').forEach((field) => {
+			const name = field.value.trim();
+			if (name !== "") {
+				names.add(name);
+			}
+		});
+
+		datalist.replaceChildren(...Array.from(names).map((name) => {
+			const option = document.createElement("option");
+			option.value = name;
+			return option;
+		}));
 	}
 
 	function findFirstControl(container) {

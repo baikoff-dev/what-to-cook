@@ -16,6 +16,8 @@ public record RecipeCatalogItem(
 		int servings,
 		String difficulty,
 		String status,
+		String cuisine,
+		String origin,
 		boolean favorite,
 		List<RestrictionWarning> restrictionWarnings) {
 

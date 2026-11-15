@@ -20,6 +20,8 @@ public record RecipeDetails(
 		int totalMinutes,
 		String difficulty,
 		String status,
+		String cuisine,
+		String origin,
 		String sourceName,
 		String sourceUrl,
 		String personalNotes,
@@ -39,7 +41,20 @@ public record RecipeDetails(
 			String name,
 			String amount,
 			String unit,
-			boolean optional) {
+			boolean optional,
+			List<Substitution> substitutions) {
+
+		public IngredientLine {
+			substitutions = List.copyOf(substitutions);
+		}
+	}
+
+	public record Substitution(
+			String ingredientName,
+			String amount,
+			String unit,
+			String type,
+			String impactNote) {
 	}
 
 	public record Step(

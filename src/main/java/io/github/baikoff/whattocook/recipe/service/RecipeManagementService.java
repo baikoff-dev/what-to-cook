@@ -8,6 +8,7 @@ import io.github.baikoff.whattocook.recipe.domain.Recipe;
 import io.github.baikoff.whattocook.recipe.domain.RecipeIngredient;
 import io.github.baikoff.whattocook.recipe.domain.RecipeStatus;
 import io.github.baikoff.whattocook.recipe.repository.CookingMethodRepository;
+import io.github.baikoff.whattocook.recipe.repository.CuisineRepository;
 import io.github.baikoff.whattocook.recipe.repository.EquipmentRepository;
 import io.github.baikoff.whattocook.recipe.repository.IngredientRepository;
 import io.github.baikoff.whattocook.recipe.repository.RecipeRepository;
@@ -15,6 +16,7 @@ import io.github.baikoff.whattocook.recipe.service.model.RecipeForm;
 import io.github.baikoff.whattocook.recipe.service.model.SelectionOption;
 
 import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -30,6 +32,7 @@ public class RecipeManagementService {
 	private final IngredientRepository ingredientRepository;
 	private final EquipmentRepository equipmentRepository;
 	private final CookingMethodRepository cookingMethodRepository;
+	private final CuisineRepository cuisineRepository;
 	private final RecipeImageStorage imageStorage;
 
 	public RecipeManagementService(
@@ -37,11 +40,13 @@ public class RecipeManagementService {
 			IngredientRepository ingredientRepository,
 			EquipmentRepository equipmentRepository,
 			CookingMethodRepository cookingMethodRepository,
+			CuisineRepository cuisineRepository,
 			RecipeImageStorage imageStorage) {
 		this.recipeRepository = recipeRepository;
 		this.ingredientRepository = ingredientRepository;
 		this.equipmentRepository = equipmentRepository;
 		this.cookingMethodRepository = cookingMethodRepository;
+		this.cuisineRepository = cuisineRepository;
 		this.imageStorage = imageStorage;
 	}
 
@@ -59,6 +64,8 @@ public class RecipeManagementService {
 		form.setCookingMinutes(recipe.getCookingMinutes());
 		form.setDifficulty(recipe.getDifficulty());
 		form.setStatus(recipe.getStatus() == RecipeStatus.ARCHIVED ? RecipeStatus.UNTESTED : recipe.getStatus());
+		form.setCuisineId(recipe.getCuisine().getId());
+		form.setOrigin(recipe.getOrigin());
 		form.setSourceName(recipe.getSourceName());
 		form.setSourceUrl(recipe.getSourceUrl());
 		form.setPersonalNotes(recipe.getPersonalNotes());
@@ -74,6 +81,21 @@ public class RecipeManagementService {
 			row.setOptional(recipeIngredient.isOptional());
 			return row;
 		}).toList());
+
+		var substitutions = new ArrayList<RecipeForm.SubstitutionRow>();
+		for (var recipeIngredient : recipe.getIngredients()) {
+			for (var substitution : recipeIngredient.getSubstitutions()) {
+				var row = new RecipeForm.SubstitutionRow();
+				row.setOriginalIngredientName(recipeIngredient.getIngredient().getNameRu());
+				row.setSubstituteIngredientName(substitution.getSubstituteIngredient().getNameRu());
+				row.setAmount(substitution.getAmount());
+				row.setUnit(substitution.getUnit());
+				row.setType(substitution.getType());
+				row.setImpactNote(substitution.getImpactNote());
+				substitutions.add(row);
+			}
+		}
+		form.setSubstitutions(substitutions);
 
 		form.setSteps(recipe.getSteps().stream().map(step -> {
 			var row = new RecipeForm.StepRow();
@@ -95,6 +117,13 @@ public class RecipeManagementService {
 	@Transactional(readOnly = true)
 	public List<SelectionOption> getCookingMethodOptions() {
 		return cookingMethodRepository.findAllByOrderByNameRuAsc().stream()
+				.map(item -> new SelectionOption(item.getId(), item.getNameRu()))
+				.toList();
+	}
+
+	@Transactional(readOnly = true)
+	public List<SelectionOption> getCuisineOptions() {
+		return cuisineRepository.findAllByOrderByNameRuAsc().stream()
 				.map(item -> new SelectionOption(item.getId(), item.getNameRu()))
 				.toList();
 	}
@@ -149,6 +178,8 @@ public class RecipeManagementService {
 		if (cookingMethods.size() != form.getCookingMethodIds().stream().distinct().count()) {
 			throw new IllegalArgumentException("Выбран неизвестный способ приготовления");
 		}
+		var cuisine = cuisineRepository.findById(form.getCuisineId())
+				.orElseThrow(() -> new IllegalArgumentException("Выбрана неизвестная кухня"));
 
 		recipe.updateDetails(
 				normalizeRequired(form.getNameRu()),
@@ -159,6 +190,8 @@ public class RecipeManagementService {
 				form.getCookingMinutes(),
 				form.getDifficulty(),
 				form.getStatus(),
+				cuisine,
+				form.getOrigin(),
 				normalizeOptional(form.getSourceName()),
 				normalizeOptional(form.getSourceUrl()),
 				normalizeOptional(form.getPersonalNotes()));
@@ -167,14 +200,40 @@ public class RecipeManagementService {
 	}
 
 	private void replaceContent(Recipe recipe, RecipeForm form, Map<Long, String> existingStepImages) {
+		Map<String, RecipeIngredient> recipeIngredientsByName = new HashMap<>();
 		for (int index = 0; index < form.getIngredients().size(); index++) {
 			var row = form.getIngredients().get(index);
 			var ingredientName = normalizeRequired(row.getName());
-			var ingredient = ingredientRepository.findByNameRuIgnoreCase(ingredientName)
-					.orElseGet(() -> ingredientRepository.save(
-							new Ingredient("USER_" + UUID.randomUUID().toString().replace("-", "").toUpperCase(Locale.ROOT),
-									ingredientName)));
-			recipe.addIngredient(ingredient, row.getAmount(), row.getUnit(), row.isOptional(), index + 1);
+			var ingredient = findOrCreateIngredient(ingredientName);
+			var recipeIngredient = recipe.addIngredient(
+					ingredient,
+					row.getAmount(),
+					row.getUnit(),
+					row.isOptional(),
+					index + 1);
+			recipeIngredientsByName.put(normalizeName(ingredientName), recipeIngredient);
+		}
+
+		Map<String, Integer> substitutionOrderByIngredient = new HashMap<>();
+		var substitutions = form.getSubstitutions() == null ? List.<RecipeForm.SubstitutionRow>of() : form.getSubstitutions();
+		for (var row : substitutions) {
+			var originalName = normalizeRequired(row.getOriginalIngredientName());
+			var originalKey = normalizeName(originalName);
+			var recipeIngredient = recipeIngredientsByName.get(originalKey);
+			if (recipeIngredient == null) {
+				throw new IllegalArgumentException("Заменяемый ингредиент не найден в рецепте: " + originalName);
+			}
+
+			var substituteName = normalizeRequired(row.getSubstituteIngredientName());
+			var substitute = findOrCreateIngredient(substituteName);
+			var sortOrder = substitutionOrderByIngredient.merge(originalKey, 1, Integer::sum);
+			recipeIngredient.addSubstitution(
+					substitute,
+					row.getAmount(),
+					row.getUnit(),
+					row.getType(),
+					normalizeRequired(row.getImpactNote()),
+					sortOrder);
 		}
 
 		Map<Long, String> unusedStepImages = new HashMap<>(existingStepImages);
@@ -222,6 +281,18 @@ public class RecipeManagementService {
 	private Recipe findRecipe(long recipeId) {
 		return recipeRepository.findById(recipeId)
 				.orElseThrow(() -> new RecipeNotFoundException(recipeId));
+	}
+
+	private Ingredient findOrCreateIngredient(String ingredientName) {
+		return ingredientRepository.findByNameRuIgnoreCase(ingredientName)
+				.orElseGet(() -> ingredientRepository.save(
+						new Ingredient(
+								"USER_" + UUID.randomUUID().toString().replace("-", "").toUpperCase(Locale.ROOT),
+								ingredientName)));
+	}
+
+	private String normalizeName(String value) {
+		return normalizeRequired(value).toLowerCase(Locale.ROOT);
 	}
 
 	private String normalizeRequired(String value) {

@@ -64,6 +64,22 @@
 							th:selected="${search.cookingMethodId == item.id}" th:text="${item.name}">Тушение</option>
 				</select>
 			</label>
+			<label class="field">
+				<span>Кухня</span>
+				<select name="cuisineId">
+					<option value="">Любая</option>
+					<option th:each="item : ${cuisineOptions}" th:value="${item.id}"
+							th:selected="${search.cuisineId == item.id}" th:text="${item.name}">Итальянская</option>
+				</select>
+			</label>
+			<label class="field">
+				<span>Происхождение</span>
+				<select name="origin">
+					<option value="">Любое</option>
+					<option th:each="item : ${originOptions}" th:value="${item}"
+							th:selected="${search.origin == item}" th:text="${item.displayName}">Классический</option>
+				</select>
+			</label>
 			<div class="catalog-filters__actions">
 				<button class="button" type="submit">Найти</button>
 				<a th:if="${filtersApplied}" href="/recipes">Сбросить</a>
@@ -111,6 +127,7 @@
 							</li>
 						</ul>
 					</div>
+					<p class="recipe-classification" th:text="|${recipe.cuisine} · ${recipe.origin}|">Итальянская · Классический</p>
 					<h2>
 						<a th:href="${archivedView} ? @{/recipes/{id}/edit(id=${recipe.id})} : @{/recipes/{id}(id=${recipe.id})}"
 						   th:text="${recipe.nameRu}">Название</a>

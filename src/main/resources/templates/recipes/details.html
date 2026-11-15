@@ -82,6 +82,14 @@
 				<dt>Сложность</dt>
 				<dd th:text="${recipe.difficulty}">Легко</dd>
 			</div>
+			<div>
+				<dt>Кухня</dt>
+				<dd th:text="${recipe.cuisine}">Итальянская</dd>
+			</div>
+			<div>
+				<dt>Происхождение</dt>
+				<dd th:text="${recipe.origin}">Классический</dd>
+			</div>
 		</dl>
 
 		<section class="tag-section">
@@ -123,7 +131,19 @@
 				</p>
 				<ul class="ingredient-list">
 					<li th:each="ingredient : ${recipe.ingredients}">
-						<span th:text="${ingredient.name}">Ингредиент</span>
+						<div>
+							<span th:text="${ingredient.name}">Ингредиент</span>
+							<ul class="substitution-list" th:unless="${#lists.isEmpty(ingredient.substitutions)}">
+								<li th:each="substitution : ${ingredient.substitutions}">
+									<span>
+										Можно заменить на
+										<strong th:text="${substitution.ingredientName}">Другой ингредиент</strong>,
+										<span th:text="|${substitution.amount} ${substitution.unit}|">100 г</span>
+									</span>
+									<small th:text="|${substitution.type}. ${substitution.impactNote}|">Описание замены</small>
+								</li>
+							</ul>
+						</div>
 						<strong>
 							<span th:text="${ingredient.amount}">100</span>
 							<span th:text="${ingredient.unit}">г</span>

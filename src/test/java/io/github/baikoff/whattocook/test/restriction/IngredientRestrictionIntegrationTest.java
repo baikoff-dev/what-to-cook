@@ -61,7 +61,7 @@ class IngredientRestrictionIntegrationTest extends AbstractIntegrationTest {
 		try {
 			assertThat(recipeRestrictionService.save(form)).isTrue();
 			var catalogItem = recipeCatalogService.search(
-					new RecipeSearchCriteria("паприка", null, null, null, null)).getFirst();
+					new RecipeSearchCriteria("паприка", null, null, null, null, null, null)).getFirst();
 			var matchItem = recipeMatchingService.match(java.util.List.of(paprikaId)).recipes().getFirst();
 			var details = recipeCatalogService.getRecipe(catalogItem.id());
 			var restrictionsPage = get("/preferences/restrictions");
@@ -96,7 +96,7 @@ class IngredientRestrictionIntegrationTest extends AbstractIntegrationTest {
 	void exclusionRestrictionHidesRecipeFromResultsButNotDirectPage() throws IOException, InterruptedException {
 		var potatoId = ingredientIds("Картофель").getFirst();
 		var potatoRecipe = recipeCatalogService.search(
-				new RecipeSearchCriteria("запечённый", null, null, null, null)).getFirst();
+				new RecipeSearchCriteria("запечённый", null, null, null, null, null, null)).getFirst();
 		recipeFavoriteService.add(potatoRecipe.id());
 		recipeRestrictionService.delete(potatoId);
 
@@ -107,7 +107,7 @@ class IngredientRestrictionIntegrationTest extends AbstractIntegrationTest {
 					"Не предлагать блюда с картофелем"));
 
 			assertThat(recipeCatalogService.search(
-					new RecipeSearchCriteria("запечённый", null, null, null, null))).isEmpty();
+					new RecipeSearchCriteria("запечённый", null, null, null, null, null, null))).isEmpty();
 			assertThat(recipeCatalogService.getFavorites())
 					.extracting(item -> item.id())
 					.doesNotContain(potatoRecipe.id());
@@ -147,7 +147,7 @@ class IngredientRestrictionIntegrationTest extends AbstractIntegrationTest {
 		recipeRestrictionService.save(restrictionForm(allergenId, RestrictionMode.EXCLUDE, null));
 
 		assertThat(recipeCatalogService.search(
-				new RecipeSearchCriteria("необязательным аллергеном", null, null, null, null))).isEmpty();
+				new RecipeSearchCriteria("необязательным аллергеном", null, null, null, null, null, null))).isEmpty();
 		var details = recipeCatalogService.getRecipe(recipeId);
 		assertThat(details.excludedByRestriction()).isTrue();
 		assertThat(details.restrictionWarnings())

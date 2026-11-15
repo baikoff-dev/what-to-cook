@@ -1,7 +1,10 @@
 package io.github.baikoff.whattocook.recipe.domain;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -12,6 +15,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 
 @Entity
@@ -43,6 +48,10 @@ public class RecipeIngredient {
 	@Column(name = "sort_order", nullable = false)
 	private int sortOrder;
 
+	@OneToMany(mappedBy = "recipeIngredient", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+	@OrderBy("sortOrder ASC")
+	private List<IngredientSubstitution> substitutions = new ArrayList<>();
+
 	protected RecipeIngredient() {
 	}
 
@@ -54,6 +63,23 @@ public class RecipeIngredient {
 		this.unit = unit;
 		this.optional = optional;
 		this.sortOrder = sortOrder;
+	}
+
+	public void addSubstitution(
+			Ingredient substituteIngredient,
+			BigDecimal amount,
+			MeasurementUnit unit,
+			SubstitutionType type,
+			String impactNote,
+			int sortOrder) {
+		substitutions.add(new IngredientSubstitution(
+				this,
+				substituteIngredient,
+				amount,
+				unit,
+				type,
+				impactNote,
+				sortOrder));
 	}
 
 	public Long getId() {
@@ -82,5 +108,9 @@ public class RecipeIngredient {
 
 	public int getSortOrder() {
 		return sortOrder;
+	}
+
+	public List<IngredientSubstitution> getSubstitutions() {
+		return substitutions;
 	}
 }
