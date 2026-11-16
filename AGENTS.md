@@ -1,32 +1,45 @@
 # What to Cook
 
-## Project
+## Проект
 
-- This is a Java and Spring Boot application.
-- The base Java package is `io.github.baikoff.whattocook`.
-- Use Maven through the included Maven Wrapper.
-- The main interface language is Russian.
-- PostgreSQL runs through Docker Compose.
-- Flyway is the only mechanism allowed to change the database schema.
-- Hibernate validates the schema and must not create or update it.
+- Это приложение на Java и Spring Boot.
+- Базовый Java-пакет — `io.github.baikoff.whattocook`.
+- Для Maven используется Wrapper, включённый в репозиторий.
+- Основной язык интерфейса и описательной документации — русский.
+- PostgreSQL запускается через Docker Compose.
+- Flyway — единственный разрешённый механизм изменения схемы базы данных.
+- Hibernate проверяет схему и не должен создавать или обновлять её.
 
-## Development workflow
+## Процесс разработки
 
-- Implement features in small, understandable iterations.
-- Explain important Java and Spring concepts.
-- Add tests for business logic and important user scenarios.
-- Run relevant tests after changes.
-- Do not add dependencies without explaining their purpose.
-- Do not create commits or push without an explicit request.
-- Do not modify files unrelated to the current task.
+- Реализуй функции небольшими и понятными итерациями.
+- Объясняй важные решения по Java, Spring и архитектуре.
+- Для неоднозначной задачи сначала исследуй существующее поведение и только
+  потом предлагай изменения.
+- Перед реализацией согласуй один пользовательский сценарий и план изменений.
+- Разрабатывай новое поведение по Outside-In TDD согласно
+  `docs/testing-strategy.md`.
+- До изменения рабочего кода добавь падающий acceptance-тест и покажи
+  ожидаемый RED.
+- Во время обучения остановись после RED, объясни причину падения и дождись
+  подтверждения перед переходом к GREEN.
+- Добавляй быстрые unit-тесты для нетривиальных бизнес-правил, когда они
+  помогают вести реализацию.
+- Не удаляй и не ослабляй тест только ради успешного прохождения набора тестов.
+- Сначала запускай новый тест, затем связанные тесты и в конце полный набор.
+- Обновляй документацию при изменении поведения, архитектуры, запуска или
+  процесса разработки.
+- Не добавляй зависимости без объяснения их назначения.
+- Не создавай commit и не выполняй push без отдельного запроса.
+- Не изменяй файлы, не связанные с текущей задачей.
 
-## Commands
+## Команды
 
-- Windows tests: `.\mvnw.cmd test`
-- Windows run: `.\mvnw.cmd spring-boot:run`
-- Start database: `docker compose up -d`
-- Database status: `docker compose ps`
-- Database logs: `docker compose logs postgres`
-- Stop database: `docker compose stop`
-- Unix tests: `./mvnw test`
-- Unix run: `./mvnw spring-boot:run`
+- Тесты в Windows: `.\mvnw.cmd test`
+- Запуск в Windows: `.\mvnw.cmd spring-boot:run`
+- Запуск базы: `docker compose up -d`
+- Состояние базы: `docker compose ps`
+- Логи базы: `docker compose logs postgres`
+- Остановка базы: `docker compose stop`
+- Тесты в Unix: `./mvnw test`
+- Запуск в Unix: `./mvnw spring-boot:run`

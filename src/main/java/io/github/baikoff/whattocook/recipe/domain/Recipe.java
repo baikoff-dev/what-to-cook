@@ -75,6 +75,9 @@ public class Recipe {
 	@Column(name = "source_url", length = 1000)
 	private String sourceUrl;
 
+	@Column(name = "video_url", length = 1000)
+	private String videoUrl;
+
 	@Column(name = "main_image_path", length = 500)
 	private String mainImagePath;
 
@@ -135,6 +138,7 @@ public class Recipe {
 			RecipeOrigin origin,
 			String sourceName,
 			String sourceUrl,
+			String videoUrl,
 			String personalNotes) {
 		this.nameRu = nameRu;
 		this.nameEn = nameEn;
@@ -148,6 +152,7 @@ public class Recipe {
 		this.origin = origin;
 		this.sourceName = sourceName;
 		this.sourceUrl = sourceUrl;
+		this.videoUrl = videoUrl;
 		this.personalNotes = personalNotes;
 	}
 
@@ -258,6 +263,10 @@ public class Recipe {
 
 	public String getSourceUrl() {
 		return sourceUrl;
+	}
+
+	public String getVideoUrl() {
+		return videoUrl;
 	}
 
 	public String getMainImagePath() {

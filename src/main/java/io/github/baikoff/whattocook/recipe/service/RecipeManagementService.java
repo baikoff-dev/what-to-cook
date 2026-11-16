@@ -68,6 +68,7 @@ public class RecipeManagementService {
 		form.setOrigin(recipe.getOrigin());
 		form.setSourceName(recipe.getSourceName());
 		form.setSourceUrl(recipe.getSourceUrl());
+		form.setVideoUrl(recipe.getVideoUrl());
 		form.setPersonalNotes(recipe.getPersonalNotes());
 		form.setExistingMainImagePath(recipe.getMainImagePath());
 		form.setEquipmentIds(recipe.getEquipment().stream().map(Equipment::getId).toList());
@@ -194,6 +195,7 @@ public class RecipeManagementService {
 				form.getOrigin(),
 				normalizeOptional(form.getSourceName()),
 				normalizeOptional(form.getSourceUrl()),
+				normalizeOptional(form.getVideoUrl()),
 				normalizeOptional(form.getPersonalNotes()));
 		recipe.replaceEquipment(equipment);
 		recipe.replaceCookingMethods(cookingMethods);

@@ -173,6 +173,10 @@
 			<p th:text="${recipe.personalNotes}">Заметка</p>
 		</section>
 
+		<section class="recipe-video" th:if="${recipe.videoUrl != null}">
+			<a class="button button--secondary" th:href="${recipe.videoUrl}" target="_blank" rel="noopener noreferrer">Посмотреть видео приготовления</a>
+		</section>
+
 		<footer class="recipe-source" th:if="${recipe.sourceName != null}">
 			<span>Источник:</span>
 			<a th:if="${recipe.sourceUrl != null}" th:href="${recipe.sourceUrl}" th:text="${recipe.sourceName}">Источник</a>

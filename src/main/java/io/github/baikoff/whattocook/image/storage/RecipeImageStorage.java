@@ -23,6 +23,8 @@ import org.springframework.web.multipart.MultipartFile;
 @Component
 public class RecipeImageStorage {
 
+	private static final String BUNDLED_PATH_PREFIX = "bundled:";
+	private static final String BUNDLED_PUBLIC_URL_PREFIX = "/images/";
 	private static final long MAX_FILE_SIZE = 5L * 1024 * 1024;
 	private static final int MAX_IMAGE_SIDE = 8000;
 
@@ -91,7 +93,7 @@ public class RecipeImageStorage {
 	}
 
 	public void deleteAfterCommit(String relativePath) {
-		if (relativePath == null || relativePath.isBlank()) {
+		if (relativePath == null || relativePath.isBlank() || isBundled(relativePath)) {
 			return;
 		}
 
@@ -116,7 +118,16 @@ public class RecipeImageStorage {
 		if (relativePath == null || relativePath.isBlank()) {
 			return null;
 		}
-		return "/user-images/" + relativePath.replace('\\', '/');
+
+		var normalizedPath = relativePath.replace('\\', '/');
+		if (isBundled(normalizedPath)) {
+			return BUNDLED_PUBLIC_URL_PREFIX + normalizedPath.substring(BUNDLED_PATH_PREFIX.length());
+		}
+		return "/user-images/" + normalizedPath;
+	}
+
+	private boolean isBundled(String relativePath) {
+		return relativePath.startsWith(BUNDLED_PATH_PREFIX);
 	}
 
 	private Optional<String> detectExtension(byte[] bytes) {

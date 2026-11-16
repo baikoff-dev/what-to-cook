@@ -11,7 +11,10 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
 
 import javax.imageio.ImageIO;
 
@@ -148,6 +151,31 @@ public abstract class AbstractIntegrationTest {
 				.uri(URI.create("http://127.0.0.1:" + port + path))
 				.header("Content-Type", "application/x-www-form-urlencoded")
 				.POST(HttpRequest.BodyPublishers.ofString(body))
+				.build();
+
+		return client.send(request, HttpResponse.BodyHandlers.ofString());
+	}
+
+	protected HttpResponse<String> postMultipartForm(
+			String path,
+			List<Map.Entry<String, String>> fields) throws IOException, InterruptedException {
+		var boundary = "----WhatToCookTestBoundary";
+		var body = new StringBuilder();
+		for (var field : fields) {
+			body.append("--").append(boundary).append("\r\n")
+					.append("Content-Disposition: form-data; name=\"")
+					.append(field.getKey())
+					.append("\"\r\n\r\n")
+					.append(field.getValue())
+					.append("\r\n");
+		}
+		body.append("--").append(boundary).append("--\r\n");
+
+		var client = HttpClient.newHttpClient();
+		var request = HttpRequest.newBuilder()
+				.uri(URI.create("http://127.0.0.1:" + port + path))
+				.header("Content-Type", "multipart/form-data; boundary=" + boundary)
+				.POST(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8))
 				.build();
 
 		return client.send(request, HttpResponse.BodyHandlers.ofString());

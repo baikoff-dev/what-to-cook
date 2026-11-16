@@ -194,6 +194,7 @@ public class RecipeCatalogService {
 				recipe.getOrigin().getDisplayName(),
 				recipe.getSourceName(),
 				recipe.getSourceUrl(),
+				recipe.getVideoUrl(),
 				recipe.getPersonalNotes(),
 				ingredients,
 				steps,

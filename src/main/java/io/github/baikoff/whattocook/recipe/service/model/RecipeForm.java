@@ -71,6 +71,10 @@ public class RecipeForm {
 	@Pattern(regexp = "^$|https?://.+", message = "Ссылка должна начинаться с http:// или https://")
 	private String sourceUrl;
 
+	@Size(max = 1000, message = "Ссылка на видео должна быть не длиннее 1000 символов")
+	@Pattern(regexp = "^$|https?://.+", message = "Ссылка на видео должна начинаться с http:// или https://")
+	private String videoUrl;
+
 	@Size(max = 5000, message = "Заметка должна быть не длиннее 5000 символов")
 	private String personalNotes;
 
@@ -209,6 +213,14 @@ public class RecipeForm {
 
 	public void setSourceUrl(String sourceUrl) {
 		this.sourceUrl = sourceUrl;
+	}
+
+	public String getVideoUrl() {
+		return videoUrl;
+	}
+
+	public void setVideoUrl(String videoUrl) {
+		this.videoUrl = videoUrl;
 	}
 
 	public String getPersonalNotes() {

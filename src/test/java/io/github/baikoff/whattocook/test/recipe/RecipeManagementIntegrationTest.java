@@ -47,12 +47,16 @@ import io.github.baikoff.whattocook.recipe.domain.RecipeSearchCriteria;
 import io.github.baikoff.whattocook.recipe.domain.RecipeStatus;
 import io.github.baikoff.whattocook.recipe.domain.RecipeOrigin;
 import io.github.baikoff.whattocook.recipe.domain.SubstitutionType;
+import io.github.baikoff.whattocook.recipe.repository.RecipeRepository;
 import io.github.baikoff.whattocook.restriction.domain.RestrictionMode;
 
 
 import io.github.baikoff.whattocook.test.support.AbstractIntegrationTest;
 
 class RecipeManagementIntegrationTest extends AbstractIntegrationTest {
+
+	@Autowired
+	private RecipeRepository recipeRepository;
 
 	@Test
 	void createAndEditFormsAreAvailable() throws IOException, InterruptedException {
@@ -144,6 +148,29 @@ class RecipeManagementIntegrationTest extends AbstractIntegrationTest {
 
 		recipeManagementService.restore(recipeId);
 		assertThat(recipeCatalogService.getRecipe(recipeId).status()).isEqualTo("Не проверен");
+	}
+
+	@Test
+	@Transactional
+	void bundledCoverCanBeReplacedWithUserImage() throws IOException {
+		var recipeSummary = recipeCatalogService.getCatalog().stream()
+				.filter(recipe -> recipe.nameRu().equals("Шакшука"))
+				.findFirst()
+				.orElseThrow();
+		var recipe = recipeRepository.findById(recipeSummary.id()).orElseThrow();
+		recipe.setMainImagePath("bundled:recipes/classic/shakshuka.png");
+		recipeRepository.saveAndFlush(recipe);
+
+		var editForm = recipeManagementService.getForm(recipe.getId());
+		editForm.setMainImage(validPng());
+		recipeManagementService.update(recipe.getId(), editForm);
+
+		var updatedForm = recipeManagementService.getForm(recipe.getId());
+		assertThat(recipeCatalogService.getRecipe(recipe.getId()).mainImageUrl())
+				.startsWith("/user-images/recipes/");
+		assertThat(updatedForm.getExistingMainImagePath()).doesNotStartWith("bundled:");
+		assertThat(recipeImageStorage.getRootDirectory().resolve(updatedForm.getExistingMainImagePath()))
+				.exists();
 	}
 
 	@Test

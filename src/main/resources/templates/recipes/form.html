@@ -267,6 +267,7 @@
 					<label class="field"><span>Название источника</span><input type="text" th:field="*{sourceName}" maxlength="300"><small class="form-error" th:errors="*{sourceName}">Ошибка</small></label>
 					<label class="field"><span>Ссылка</span><input type="url" th:field="*{sourceUrl}" maxlength="1000" placeholder="https://"><small class="form-error" th:errors="*{sourceUrl}">Ошибка</small></label>
 				</div>
+				<label class="field"><span>Видео приготовления</span><input type="url" th:field="*{videoUrl}" maxlength="1000" placeholder="https://"><small class="form-error" th:errors="*{videoUrl}">Ошибка</small></label>
 				<label class="field"><span>Личная заметка</span><textarea th:field="*{personalNotes}" rows="3" maxlength="5000"></textarea><small class="form-error" th:errors="*{personalNotes}">Ошибка</small></label>
 			</section>
 

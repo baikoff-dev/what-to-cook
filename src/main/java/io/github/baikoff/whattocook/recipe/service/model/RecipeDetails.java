@@ -24,6 +24,7 @@ public record RecipeDetails(
 		String origin,
 		String sourceName,
 		String sourceUrl,
+		String videoUrl,
 		String personalNotes,
 		List<IngredientLine> ingredients,
 		List<Step> steps,
