@@ -70,10 +70,10 @@ class DishAssistantIntegrationTest extends AbstractIntegrationTest {
 				.singleElement()
 				.satisfies(recipe -> {
 					assertThat(recipe.nameRu()).isEqualTo("Картофель, запечённый в духовке");
-					assertThat(recipe.matchPercentage()).isEqualTo(20);
+					assertThat(recipe.matchPercentage()).isEqualTo(60);
 					assertThat(recipe.missingIngredients()).contains("Картофель", "Чеснок");
 					assertThat(recipe.reasons())
-							.contains("Есть 1 из 5 обязательных продуктов")
+							.contains("Есть 3 из 5 обязательных продуктов")
 							.contains("Подходит для оборудования: Электродуховка")
 							.contains("Способ приготовления: Запекание")
 							.contains("Приоритет отдан совпадению имеющихся продуктов");
@@ -91,7 +91,7 @@ class DishAssistantIntegrationTest extends AbstractIntegrationTest {
 		assertThat(response.body())
 				.contains("Подходящие блюда")
 				.contains("Картофель, запечённый в духовке")
-				.contains("Есть 1 из 5 обязательных продуктов");
+				.contains("Есть 3 из 5 обязательных продуктов");
 	}
 
 	@Test

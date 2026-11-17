@@ -1,5 +1,6 @@
 package io.github.baikoff.whattocook.assistant.service.model;
 
+import io.github.baikoff.whattocook.recipe.service.model.IngredientSubstitutionUsage;
 import io.github.baikoff.whattocook.restriction.service.model.RestrictionWarning;
 
 import java.time.LocalDate;
@@ -19,6 +20,8 @@ public record DishRecommendation(
 		int matchedIngredientCount,
 		int requiredIngredientCount,
 		List<String> missingIngredients,
+		List<IngredientSubstitutionUsage> substitutionUsages,
+		List<String> pantryIngredientNames,
 		LocalDate lastCookedOn,
 		boolean favorite,
 		Double averageRating,
@@ -29,11 +32,17 @@ public record DishRecommendation(
 		equipment = List.copyOf(equipment);
 		cookingMethods = List.copyOf(cookingMethods);
 		missingIngredients = List.copyOf(missingIngredients);
+		substitutionUsages = List.copyOf(substitutionUsages);
+		pantryIngredientNames = List.copyOf(pantryIngredientNames);
 		reasons = List.copyOf(reasons);
 		restrictionWarnings = List.copyOf(restrictionWarnings);
 	}
 
 	public boolean canCook() {
 		return ingredientsSpecified && missingIngredients.isEmpty();
+	}
+
+	public String pantrySummary() {
+		return String.join(", ", pantryIngredientNames);
 	}
 }

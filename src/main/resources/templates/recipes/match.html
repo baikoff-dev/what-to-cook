@@ -82,6 +82,20 @@
 						   th:text="|Есть ${recipe.matchedIngredientCount} из ${recipe.requiredIngredientCount} обязательных продуктов|">
 							Есть 3 из 4 обязательных продуктов
 						</p>
+						<p class="match-ready" th:unless="${#lists.isEmpty(recipe.pantryIngredientNames)}"
+						   th:text="|Из базовой кладовой: ${recipe.pantrySummary}|">
+							Из базовой кладовой: Растительное масло, Соль
+						</p>
+						<ul class="substitution-usages" th:unless="${#lists.isEmpty(recipe.substitutionUsages)}">
+							<li th:each="substitution : ${recipe.substitutionUsages}">
+								<strong th:text="|Учтена замена: ${substitution.originalIngredientName} → ${substitution.substituteIngredientName}|">
+									Учтена замена: основной продукт → замена
+								</strong>
+								<span th:text="| (${substitution.substitutionType})|"> (тип замены)</span>
+								<span th:if="${substitution.impactNote != null and !#strings.isEmpty(substitution.impactNote)}"
+									  th:text="| — ${substitution.impactNote}|"> — влияние на блюдо</span>
+							</li>
+						</ul>
 						<p class="match-ready" th:if="${recipe.canCook}">Все обязательные продукты есть.</p>
 						<div th:unless="${recipe.canCook}">
 							<strong>Не хватает:</strong>

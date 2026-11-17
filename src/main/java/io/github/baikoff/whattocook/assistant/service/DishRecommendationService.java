@@ -7,6 +7,7 @@ import io.github.baikoff.whattocook.favorite.service.RecipeFavoriteService;
 import io.github.baikoff.whattocook.history.service.CookingHistoryService;
 import io.github.baikoff.whattocook.history.service.model.CookingHistoryItem;
 import io.github.baikoff.whattocook.image.storage.RecipeImageStorage;
+import io.github.baikoff.whattocook.pantry.service.PantryService;
 import io.github.baikoff.whattocook.recipe.domain.CookingMethod;
 import io.github.baikoff.whattocook.recipe.domain.Difficulty;
 import io.github.baikoff.whattocook.recipe.domain.Equipment;
@@ -17,6 +18,8 @@ import io.github.baikoff.whattocook.recipe.repository.CookingMethodRepository;
 import io.github.baikoff.whattocook.recipe.repository.EquipmentRepository;
 import io.github.baikoff.whattocook.recipe.repository.IngredientRepository;
 import io.github.baikoff.whattocook.recipe.repository.RecipeRepository;
+import io.github.baikoff.whattocook.recipe.service.IngredientAvailabilityMatcher;
+import io.github.baikoff.whattocook.recipe.service.model.IngredientSubstitutionUsage;
 import io.github.baikoff.whattocook.recipe.service.model.SelectionOption;
 import io.github.baikoff.whattocook.restriction.service.RecipeRestrictionEvaluation;
 import io.github.baikoff.whattocook.restriction.service.RecipeRestrictionService;
@@ -25,12 +28,14 @@ import io.github.baikoff.whattocook.restriction.service.RestrictionPolicy;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.random.RandomGenerator;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -50,6 +55,9 @@ public class DishRecommendationService {
 	private final CookingHistoryService cookingHistoryService;
 	private final RecipeFavoriteService favoriteService;
 	private final RecipeImageStorage imageStorage;
+	private final RandomGenerator recommendationRandomGenerator;
+	private final IngredientAvailabilityMatcher ingredientAvailabilityMatcher;
+	private final PantryService pantryService;
 
 	public DishRecommendationService(
 			RecipeRepository recipeRepository,
@@ -59,7 +67,10 @@ public class DishRecommendationService {
 			RecipeRestrictionService restrictionService,
 			CookingHistoryService cookingHistoryService,
 			RecipeFavoriteService favoriteService,
-			RecipeImageStorage imageStorage) {
+			RecipeImageStorage imageStorage,
+			RandomGenerator recommendationRandomGenerator,
+			IngredientAvailabilityMatcher ingredientAvailabilityMatcher,
+			PantryService pantryService) {
 		this.recipeRepository = recipeRepository;
 		this.ingredientRepository = ingredientRepository;
 		this.equipmentRepository = equipmentRepository;
@@ -68,6 +79,9 @@ public class DishRecommendationService {
 		this.cookingHistoryService = cookingHistoryService;
 		this.favoriteService = favoriteService;
 		this.imageStorage = imageStorage;
+		this.recommendationRandomGenerator = recommendationRandomGenerator;
+		this.ingredientAvailabilityMatcher = ingredientAvailabilityMatcher;
+		this.pantryService = pantryService;
 	}
 
 	@Transactional(readOnly = true)
@@ -97,11 +111,12 @@ public class DishRecommendationService {
 				? AssistantCriteria.surpriseMe()
 				: requestedCriteria;
 		var selectedIngredientIds = normalizeIngredientIds(criteria.ingredientIds());
+		var pantryIngredientIds = pantryService.getIngredientIds();
 		var cookingStats = cookingStats();
 		var favoriteRecipeIds = favoriteService.getFavoriteRecipeIds();
 		var restrictionPolicy = restrictionService.loadPolicy();
 
-		return recipeRepository.findAllByStatusNotOrderByNameRuAsc(RecipeStatus.ARCHIVED).stream()
+		var scoredRecommendations = recipeRepository.findAllByStatusNotOrderByNameRuAsc(RecipeStatus.ARCHIVED).stream()
 				.filter(recipe -> matchesFilters(recipe, criteria))
 				.map(recipe -> evaluate(recipe, restrictionPolicy))
 				.filter(evaluated -> !evaluated.restriction().excluded())
@@ -110,14 +125,44 @@ public class DishRecommendationService {
 						evaluated.restriction(),
 						criteria,
 						selectedIngredientIds,
+						pantryIngredientIds,
 						cookingStats.getOrDefault(evaluated.recipe().getId(), CookingStats.empty()),
 						favoriteRecipeIds.contains(evaluated.recipe().getId())))
 				.filter(scored -> selectedIngredientIds.isEmpty()
-						|| scored.recommendation().matchedIngredientCount() > 0)
-				.sorted(recommendationOrder(criteria.goal()))
+						|| scored.selectedIngredientMatchCount() > 0)
+				.toList();
+
+		var orderedRecommendations = criteria.surprise()
+				? surpriseOrder(scoredRecommendations)
+				: scoredRecommendations.stream()
+						.sorted(recommendationOrder(criteria.goal()))
+						.toList();
+
+		return orderedRecommendations.stream()
 				.limit(RECOMMENDATION_LIMIT)
 				.map(ScoredRecommendation::recommendation)
 				.toList();
+	}
+
+	private List<ScoredRecommendation> surpriseOrder(List<ScoredRecommendation> recommendations) {
+		var neverCooked = recommendations.stream()
+				.filter(recommendation -> recommendation.lastCookedOn() == null)
+				.collect(Collectors.toCollection(ArrayList::new));
+		var cooked = recommendations.stream()
+				.filter(recommendation -> recommendation.lastCookedOn() != null)
+				.collect(Collectors.toCollection(ArrayList::new));
+
+		shuffle(neverCooked);
+		shuffle(cooked);
+		neverCooked.addAll(cooked);
+		return List.copyOf(neverCooked);
+	}
+
+	private void shuffle(List<ScoredRecommendation> recommendations) {
+		for (var index = recommendations.size() - 1; index > 0; index--) {
+			var randomIndex = recommendationRandomGenerator.nextInt(index + 1);
+			Collections.swap(recommendations, index, randomIndex);
+		}
 	}
 
 	private Set<Long> normalizeIngredientIds(List<Long> requestedIds) {
@@ -161,23 +206,24 @@ public class DishRecommendationService {
 			RecipeRestrictionEvaluation restriction,
 			AssistantCriteria criteria,
 			Set<Long> selectedIngredientIds,
+			Set<Long> pantryIngredientIds,
 			CookingStats cookingStats,
 			boolean favorite) {
-		var requiredIngredients = recipe.getIngredients().stream()
-				.filter(ingredient -> !ingredient.isOptional())
-				.toList();
 		var ingredientsSpecified = !selectedIngredientIds.isEmpty();
-		var missingIngredients = ingredientsSpecified
-				? requiredIngredients.stream()
-						.filter(ingredient -> !selectedIngredientIds.contains(ingredient.getIngredient().getId()))
-						.map(ingredient -> ingredient.getIngredient().getNameRu())
-						.toList()
+		var ingredientMatch = ingredientAvailabilityMatcher.match(
+				recipe.getIngredients(),
+				selectedIngredientIds,
+				pantryIngredientIds);
+		var missingIngredients = ingredientsSpecified ? ingredientMatch.missingIngredients() : List.<String>of();
+		var substitutionUsages = ingredientsSpecified
+				? ingredientMatch.substitutionUsages()
+				: List.<IngredientSubstitutionUsage>of();
+		var pantryIngredientNames = ingredientsSpecified
+				? ingredientMatch.pantryIngredientNames()
 				: List.<String>of();
-		var requiredCount = requiredIngredients.size();
-		var matchedCount = ingredientsSpecified ? requiredCount - missingIngredients.size() : 0;
-		var matchPercentage = ingredientsSpecified && requiredCount > 0
-				? (int) Math.round(matchedCount * 100.0 / requiredCount)
-				: 0;
+		var requiredCount = ingredientMatch.requiredIngredientCount();
+		var matchedCount = ingredientsSpecified ? ingredientMatch.matchedIngredientCount() : 0;
+		var matchPercentage = ingredientsSpecified ? ingredientMatch.matchPercentage() : 0;
 
 		var recommendation = new DishRecommendation(
 				recipe.getId(),
@@ -193,6 +239,8 @@ public class DishRecommendationService {
 				matchedCount,
 				requiredCount,
 				missingIngredients,
+				substitutionUsages,
+				pantryIngredientNames,
 				cookingStats.lastCookedOn(),
 				favorite,
 				cookingStats.averageRating(),
@@ -209,6 +257,7 @@ public class DishRecommendationService {
 		return new ScoredRecommendation(
 				recommendation,
 				matchPercentage,
+				ingredientMatch.selectedIngredientMatchCount(),
 				cookingStats.lastCookedOn(),
 				favorite,
 				cookingStats.averageRating());
@@ -340,6 +389,7 @@ public class DishRecommendationService {
 	private record ScoredRecommendation(
 			DishRecommendation recommendation,
 			int matchPercentage,
+			int selectedIngredientMatchCount,
 			LocalDate lastCookedOn,
 			boolean favorite,
 			Double averageRating) {

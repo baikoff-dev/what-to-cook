@@ -8,6 +8,7 @@
 			<a th:attr="aria-current=${activePage == 'assistant'} ? 'page' : null" href="/assistant">Помощник</a>
 			<a th:attr="aria-current=${activePage == 'favorites'} ? 'page' : null" href="/recipes/favorites">Избранное</a>
 			<a th:attr="aria-current=${activePage == 'history'} ? 'page' : null" href="/recipes/history">История</a>
+			<a th:attr="aria-current=${activePage == 'pantry'} ? 'page' : null" href="/preferences/pantry">Кладовая</a>
 			<a th:attr="aria-current=${activePage == 'restrictions'} ? 'page' : null" href="/preferences/restrictions">Ограничения</a>
 		</nav>
 	</header>

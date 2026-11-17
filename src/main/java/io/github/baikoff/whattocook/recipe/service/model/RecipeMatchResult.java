@@ -15,16 +15,24 @@ public record RecipeMatchResult(
 		int matchedIngredientCount,
 		int requiredIngredientCount,
 		List<String> missingIngredients,
+		List<IngredientSubstitutionUsage> substitutionUsages,
+		List<String> pantryIngredientNames,
 		int totalMinutes,
 		String difficulty,
 		List<RestrictionWarning> restrictionWarnings) {
 
 	public RecipeMatchResult {
 		missingIngredients = List.copyOf(missingIngredients);
+		substitutionUsages = List.copyOf(substitutionUsages);
+		pantryIngredientNames = List.copyOf(pantryIngredientNames);
 		restrictionWarnings = List.copyOf(restrictionWarnings);
 	}
 
 	public boolean canCook() {
 		return missingIngredients.isEmpty();
+	}
+
+	public String pantrySummary() {
+		return String.join(", ", pantryIngredientNames);
 	}
 }

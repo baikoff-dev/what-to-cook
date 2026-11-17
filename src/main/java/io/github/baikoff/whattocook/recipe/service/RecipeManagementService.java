@@ -63,7 +63,9 @@ public class RecipeManagementService {
 		form.setPreparationMinutes(recipe.getPreparationMinutes());
 		form.setCookingMinutes(recipe.getCookingMinutes());
 		form.setDifficulty(recipe.getDifficulty());
-		form.setStatus(recipe.getStatus() == RecipeStatus.ARCHIVED ? RecipeStatus.UNTESTED : recipe.getStatus());
+		form.setStatus(recipe.getStatus() == RecipeStatus.ARCHIVED
+				? recipe.getStatusBeforeArchive()
+				: recipe.getStatus());
 		form.setCuisineId(recipe.getCuisine().getId());
 		form.setOrigin(recipe.getOrigin());
 		form.setSourceName(recipe.getSourceName());

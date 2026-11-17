@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Базовая кладовая — Что приготовить?</title>
+	<link rel="stylesheet" href="/css/application.css">
+	<script defer src="/js/ingredient-match.js"></script>
+</head>
+<body>
+	<header th:replace="~{fragments/navigation :: siteHeader('pantry')}"></header>
+
+	<main class="page restrictions-page">
+		<div class="page-heading">
+			<div>
+				<p class="eyebrow">Личные настройки</p>
+				<h1>Базовая кладовая</h1>
+				<p class="lead">Отметь продукты, которые почти всегда есть дома. Они автоматически учитываются при подборе.</p>
+			</div>
+			<a href="/recipes">Вернуться в каталог</a>
+		</div>
+
+		<p class="flash-message" th:if="${message}" th:text="${message}">Готово</p>
+		<p class="restriction-disclaimer" th:if="${pantry.hasSelectedIngredients}"
+		   th:text="|Сейчас всегда учитываются: ${pantry.selectedSummary}|">
+			Сейчас всегда учитываются: Вода, Растительное масло, Соль
+		</p>
+		<p class="restriction-disclaimer" th:unless="${pantry.hasSelectedIngredients}">
+			Сейчас базовая кладовая пуста.
+		</p>
+
+		<form class="matching-form" action="/preferences/pantry" method="post">
+			<div class="matching-form__heading">
+				<label class="field">
+					<span>Найти продукт в списке</span>
+					<input type="search" data-ingredient-filter placeholder="Например, соль">
+				</label>
+				<p class="section-note">Список можно изменить в любой момент.</p>
+			</div>
+
+			<div class="ingredient-picker" data-ingredient-list>
+				<label class="ingredient-choice" th:each="ingredient : ${pantry.ingredients}">
+					<input type="checkbox" name="ingredientIds" th:value="${ingredient.id}"
+						   th:checked="${ingredient.selected}">
+					<span th:text="${ingredient.name}">Соль</span>
+				</label>
+			</div>
+
+			<div class="form-actions matching-form__actions">
+				<button class="button" type="submit">Сохранить кладовую</button>
+			</div>
+		</form>
+	</main>
+</body>
+</html>

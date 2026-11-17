@@ -72,9 +72,10 @@ class RecipeMatchingIntegrationTest extends AbstractIntegrationTest {
 		assertThat(potatoRecipe.matchPercentage()).isEqualTo(100);
 		assertThat(potatoRecipe.canCook()).isTrue();
 		assertThat(potatoRecipe.missingIngredients()).isEmpty();
-		assertThat(buckwheatRecipe.matchedIngredientCount()).isEqualTo(2);
+		assertThat(buckwheatRecipe.matchedIngredientCount()).isEqualTo(3);
 		assertThat(buckwheatRecipe.requiredIngredientCount()).isEqualTo(7);
-		assertThat(buckwheatRecipe.matchPercentage()).isEqualTo(29);
+		assertThat(buckwheatRecipe.matchPercentage()).isEqualTo(43);
+		assertThat(buckwheatRecipe.pantryIngredientNames()).containsExactly("Вода");
 		assertThat(buckwheatRecipe.missingIngredients()).contains("Куриное филе", "Гречка");
 	}
 

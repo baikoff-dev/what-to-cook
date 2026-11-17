@@ -1,6 +1,7 @@
 package io.github.baikoff.whattocook.recipe.service;
 
 import io.github.baikoff.whattocook.image.storage.RecipeImageStorage;
+import io.github.baikoff.whattocook.pantry.service.PantryService;
 import io.github.baikoff.whattocook.recipe.domain.Ingredient;
 import io.github.baikoff.whattocook.recipe.domain.Recipe;
 import io.github.baikoff.whattocook.recipe.domain.RecipeIngredient;
@@ -36,16 +37,22 @@ public class RecipeMatchingService {
 	private final IngredientRepository ingredientRepository;
 	private final RecipeRestrictionService restrictionService;
 	private final RecipeImageStorage imageStorage;
+	private final IngredientAvailabilityMatcher ingredientAvailabilityMatcher;
+	private final PantryService pantryService;
 
 	public RecipeMatchingService(
 			RecipeRepository recipeRepository,
 			IngredientRepository ingredientRepository,
 			RecipeRestrictionService restrictionService,
-			RecipeImageStorage imageStorage) {
+			RecipeImageStorage imageStorage,
+			IngredientAvailabilityMatcher ingredientAvailabilityMatcher,
+			PantryService pantryService) {
 		this.recipeRepository = recipeRepository;
 		this.ingredientRepository = ingredientRepository;
 		this.restrictionService = restrictionService;
 		this.imageStorage = imageStorage;
+		this.ingredientAvailabilityMatcher = ingredientAvailabilityMatcher;
+		this.pantryService = pantryService;
 	}
 
 	@Transactional(readOnly = true)
@@ -64,15 +71,18 @@ public class RecipeMatchingService {
 		}
 
 		var policy = restrictionService.loadPolicy();
+		var pantryIngredientIds = pantryService.getIngredientIds();
 		var recipes = recipeRepository.findAllByStatusNotOrderByNameRuAsc(RecipeStatus.ARCHIVED)
 				.stream()
 				.map(recipe -> new EvaluatedRecipe(recipe, restrictionService.evaluate(recipe, policy)))
 				.filter(evaluated -> !evaluated.restriction().excluded())
-				.map(evaluated -> toResult(
+				.map(evaluated -> toCandidate(
 						evaluated.recipe(),
 						selectedIds,
+						pantryIngredientIds,
 						evaluated.restriction().warnings()))
-				.filter(result -> result.matchedIngredientCount() > 0)
+				.filter(candidate -> candidate.selectedIngredientMatchCount() > 0)
+				.map(MatchCandidate::result)
 				.sorted(RESULT_ORDER)
 				.toList();
 		return new RecipeMatchPage(options, selectedIds, recipes);
@@ -91,37 +101,36 @@ public class RecipeMatchingService {
 		return selectedIds;
 	}
 
-	private RecipeMatchResult toResult(
+	private MatchCandidate toCandidate(
 			Recipe recipe,
 			Set<Long> selectedIds,
+			Set<Long> pantryIngredientIds,
 			List<RestrictionWarning> restrictionWarnings) {
-		var requiredIngredients = recipe.getIngredients().stream()
-				.filter(recipeIngredient -> !recipeIngredient.isOptional())
-				.toList();
-		var missingIngredients = requiredIngredients.stream()
-				.filter(recipeIngredient -> !selectedIds.contains(recipeIngredient.getIngredient().getId()))
-				.map(recipeIngredient -> recipeIngredient.getIngredient().getNameRu())
-				.toList();
-		var requiredCount = requiredIngredients.size();
-		var matchedCount = requiredCount - missingIngredients.size();
-		var matchPercentage = requiredCount == 0
-				? 100
-				: (int) Math.round(matchedCount * 100.0 / requiredCount);
+		var ingredientMatch = ingredientAvailabilityMatcher.match(
+				recipe.getIngredients(),
+				selectedIds,
+				pantryIngredientIds);
 
-		return new RecipeMatchResult(
+		var result = new RecipeMatchResult(
 				recipe.getId(),
 				recipe.getNameRu(),
 				recipe.getDescription(),
 				imageStorage.publicUrl(recipe.getMainImagePath()),
-				matchPercentage,
-				matchedCount,
-				requiredCount,
-				missingIngredients,
+				ingredientMatch.matchPercentage(),
+				ingredientMatch.matchedIngredientCount(),
+				ingredientMatch.requiredIngredientCount(),
+				ingredientMatch.missingIngredients(),
+				ingredientMatch.substitutionUsages(),
+				ingredientMatch.pantryIngredientNames(),
 				recipe.getPreparationMinutes() + recipe.getCookingMinutes(),
 				recipe.getDifficulty().getDisplayName(),
 				restrictionWarnings);
+		return new MatchCandidate(result, ingredientMatch.selectedIngredientMatchCount());
 	}
 
 	private record EvaluatedRecipe(Recipe recipe, RecipeRestrictionEvaluation restriction) {
+	}
+
+	private record MatchCandidate(RecipeMatchResult result, int selectedIngredientMatchCount) {
 	}
 }

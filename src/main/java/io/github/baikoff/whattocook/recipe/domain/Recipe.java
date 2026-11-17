@@ -61,6 +61,10 @@ public class Recipe {
 	@Column(nullable = false, length = 30)
 	private RecipeStatus status;
 
+	@Enumerated(EnumType.STRING)
+	@Column(name = "status_before_archive", length = 30)
+	private RecipeStatus statusBeforeArchive;
+
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "cuisine_id", nullable = false)
 	private Cuisine cuisine;
@@ -148,6 +152,9 @@ public class Recipe {
 		this.cookingMinutes = cookingMinutes;
 		this.difficulty = difficulty;
 		this.status = status;
+		if (status != RecipeStatus.ARCHIVED) {
+			this.statusBeforeArchive = null;
+		}
 		this.cuisine = cuisine;
 		this.origin = origin;
 		this.sourceName = sourceName;
@@ -190,11 +197,17 @@ public class Recipe {
 	}
 
 	public void archive() {
-		status = RecipeStatus.ARCHIVED;
+		if (status != RecipeStatus.ARCHIVED) {
+			statusBeforeArchive = status;
+			status = RecipeStatus.ARCHIVED;
+		}
 	}
 
 	public void restore() {
-		status = RecipeStatus.UNTESTED;
+		if (status == RecipeStatus.ARCHIVED) {
+			status = statusBeforeArchive == null ? RecipeStatus.UNTESTED : statusBeforeArchive;
+			statusBeforeArchive = null;
+		}
 	}
 
 	@PrePersist
@@ -247,6 +260,10 @@ public class Recipe {
 
 	public RecipeStatus getStatus() {
 		return status;
+	}
+
+	public RecipeStatus getStatusBeforeArchive() {
+		return statusBeforeArchive;
 	}
 
 	public Cuisine getCuisine() {
