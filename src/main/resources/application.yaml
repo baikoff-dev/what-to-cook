@@ -28,3 +28,8 @@ server:
 app:
   images:
     directory: ${IMAGES_DIRECTORY:data/images}
+  telegram:
+    enabled: ${TELEGRAM_BOT_ENABLED:false}
+    token: ${TELEGRAM_BOT_TOKEN:}
+    allowed-user-ids: ${TELEGRAM_ALLOWED_USER_IDS:}
+    api-base-url: ${TELEGRAM_API_BASE_URL:https://api.telegram.org}
