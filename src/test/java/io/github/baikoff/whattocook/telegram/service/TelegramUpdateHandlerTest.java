@@ -1,6 +1,7 @@
 package io.github.baikoff.whattocook.telegram.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -29,11 +30,56 @@ class TelegramUpdateHandlerTest {
 		assertThat(response).hasValueSatisfying(message -> {
 			assertThat(message.chatId()).isEqualTo(42L);
 			assertThat(message.text()).contains("Что приготовить?");
-			assertThat(message.buttons()).singleElement().satisfies(button -> {
-				assertThat(button.text()).isEqualTo("Удиви меня");
-				assertThat(button.callbackData()).isEqualTo("SURPRISE");
-			});
+			assertThat(message.buttons())
+					.extracting(TelegramButton::text, TelegramButton::callbackData)
+					.containsExactly(
+							tuple("Удиви меня", "SURPRISE"),
+							tuple("Подобрать по продуктам", "SELECT_PRODUCTS"));
 		});
+		verify(recommendationService).cancelProductSelection(42L);
+	}
+
+	@Test
+	@DisplayName("Кнопка подбора запускает ввод продуктов")
+	void productSelectionCallbackStartsProductInput() {
+		var expectedMessage = new TelegramOutgoingMessage(
+				42L,
+				"Напиши продукты через запятую",
+				List.of(new TelegramButton("Вернуться в меню", "MENU")));
+		when(recommendationService.beginProductSelection(42L)).thenReturn(expectedMessage);
+
+		var response = handler.handle(TelegramUpdate.callback(
+				1004L,
+				42L,
+				42L,
+				"callback-3",
+				"SELECT_PRODUCTS"));
+
+		assertThat(response).contains(expectedMessage);
+		verify(recommendationService).beginProductSelection(42L);
+	}
+
+	@Test
+	@DisplayName("Список продуктов передаётся в подбор, когда бот ожидает ввод")
+	void productListIsPassedToRecommendation() {
+		var expectedMessage = new TelegramOutgoingMessage(
+				42L,
+				"Подходящий рецепт",
+				List.of(new TelegramButton("Изменить продукты", "CHANGE_PRODUCTS")));
+		when(recommendationService.awaitsProductInput(42L)).thenReturn(true);
+		when(recommendationService.recommendByProducts(42L, "картофель, чеснок, лук"))
+				.thenReturn(expectedMessage);
+
+		var response = handler.handle(new TelegramUpdate(
+				1005L,
+				42L,
+				42L,
+				"картофель, чеснок, лук"));
+
+		assertThat(response).contains(expectedMessage);
+		verify(recommendationService).recommendByProducts(
+				42L,
+				"картофель, чеснок, лук");
 	}
 
 	@Test

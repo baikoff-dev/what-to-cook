@@ -8,19 +8,31 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.client.RestClient;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 public class TelegramBotApiClient {
 
 	private static final int LONG_POLLING_TIMEOUT_SECONDS = 25;
+	private static final int MAX_PHOTO_CAPTION_LENGTH = 1024;
 
 	private final RestClient restClient;
+	private final ObjectMapper objectMapper;
 
-	public TelegramBotApiClient(TelegramProperties properties) {
+	public TelegramBotApiClient(
+			TelegramProperties properties,
+			ObjectMapper objectMapper) {
 		var apiBaseUrl = properties.getApiBaseUrl().replaceAll("/+$", "");
 		this.restClient = RestClient.builder()
 				.baseUrl(apiBaseUrl + "/bot" + properties.getToken())
 				.build();
+		this.objectMapper = objectMapper;
 	}
 
 	public List<TelegramUpdate> getUpdates(long offset) {
@@ -47,21 +59,84 @@ public class TelegramBotApiClient {
 	}
 
 	public void sendMessage(TelegramOutgoingMessage message) {
-		var buttons = message.buttons().stream()
-				.map(button -> Map.of(
-						"text", button.text(),
-						"callback_data", button.callbackData()))
-				.toList();
+		if (message.hasPhoto()) {
+			sendPhoto(message);
+			return;
+		}
+		sendTextMessage(message);
+	}
+
+	private void sendTextMessage(TelegramOutgoingMessage message) {
 		var request = new LinkedHashMap<String, Object>();
 		request.put("chat_id", message.chatId());
 		request.put("text", message.text());
-		request.put("reply_markup", Map.of("inline_keyboard", List.of(buttons)));
+		request.put("reply_markup", replyMarkup(message));
 
 		restClient.post()
 				.uri("/sendMessage")
 				.body(request)
 				.retrieve()
 				.toBodilessEntity();
+	}
+
+	private void sendPhoto(TelegramOutgoingMessage message) {
+		var photo = message.photo();
+		var parts = new LinkedMultiValueMap<String, Object>();
+		parts.add("chat_id", Long.toString(message.chatId()));
+		parts.add("caption", photoCaption(message.text()));
+		parts.add("reply_markup", json(replyMarkup(message)));
+
+		var photoHeaders = new HttpHeaders();
+		photoHeaders.setContentType(MediaType.parseMediaType(photo.mediaType()));
+		parts.add("photo", new HttpEntity<>(namedResource(photo.bytes(), photo.fileName()), photoHeaders));
+
+		restClient.post()
+				.uri("/sendPhoto")
+				.contentType(MediaType.MULTIPART_FORM_DATA)
+				.body(parts)
+				.retrieve()
+				.toBodilessEntity();
+	}
+
+	private Map<String, Object> replyMarkup(TelegramOutgoingMessage message) {
+		var buttons = message.buttons().stream()
+				.map(button -> Map.of(
+						"text", button.text(),
+						"callback_data", button.callbackData()))
+				.toList();
+		return Map.of("inline_keyboard", List.of(buttons));
+	}
+
+	private String json(Object value) {
+		try {
+			return objectMapper.writeValueAsString(value);
+		} catch (JacksonException exception) {
+			throw new IllegalStateException("Не удалось сформировать Telegram-клавиатуру", exception);
+		}
+	}
+
+	private String photoCaption(String text) {
+		if (text.length() <= MAX_PHOTO_CAPTION_LENGTH) {
+			return text;
+		}
+		var lastAllowedIndex = MAX_PHOTO_CAPTION_LENGTH - 1;
+		var boundary = text.lastIndexOf('\n', lastAllowedIndex);
+		if (boundary < MAX_PHOTO_CAPTION_LENGTH / 2) {
+			boundary = text.lastIndexOf(' ', lastAllowedIndex);
+		}
+		if (boundary <= 0) {
+			boundary = lastAllowedIndex;
+		}
+		return text.substring(0, boundary).stripTrailing() + "…";
+	}
+
+	private ByteArrayResource namedResource(byte[] bytes, String fileName) {
+		return new ByteArrayResource(bytes) {
+			@Override
+			public String getFilename() {
+				return fileName;
+			}
+		};
 	}
 
 	private List<TelegramUpdate> readUpdates(Map<?, ?> response) {

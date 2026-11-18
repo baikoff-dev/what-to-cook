@@ -9,7 +9,6 @@ import java.util.Set;
 
 public class TelegramUpdateHandler {
 
-	private static final String SURPRISE_CALLBACK = "SURPRISE";
 	private static final String WELCOME_TEXT = """
 			Что приготовить?
 
@@ -31,10 +30,25 @@ public class TelegramUpdateHandler {
 			return Optional.empty();
 		}
 		if (isStartCommand(update.text())) {
+			recommendationService.cancelProductSelection(update.chatId());
 			return Optional.of(startMessage(update.chatId()));
 		}
-		if (SURPRISE_CALLBACK.equals(update.callbackData())) {
+		if (TelegramRecommendationService.SURPRISE_CALLBACK.equals(update.callbackData())) {
 			return Optional.of(recommendationService.surprise(update.chatId()));
+		}
+		if (TelegramRecommendationService.SELECT_PRODUCTS_CALLBACK.equals(update.callbackData())
+				|| TelegramRecommendationService.CHANGE_PRODUCTS_CALLBACK.equals(update.callbackData())) {
+			return Optional.of(recommendationService.beginProductSelection(update.chatId()));
+		}
+		if (TelegramRecommendationService.NEXT_PRODUCT_CALLBACK.equals(update.callbackData())) {
+			return Optional.of(recommendationService.nextProductRecommendation(update.chatId()));
+		}
+		if (TelegramRecommendationService.MENU_CALLBACK.equals(update.callbackData())) {
+			recommendationService.cancelProductSelection(update.chatId());
+			return Optional.of(startMessage(update.chatId()));
+		}
+		if (recommendationService.awaitsProductInput(update.chatId()) && hasText(update.text())) {
+			return Optional.of(recommendationService.recommendByProducts(update.chatId(), update.text()));
 		}
 		return Optional.empty();
 	}
@@ -43,7 +57,17 @@ public class TelegramUpdateHandler {
 		return new TelegramOutgoingMessage(
 				chatId,
 				WELCOME_TEXT,
-				List.of(new TelegramButton("Удиви меня", SURPRISE_CALLBACK)));
+				List.of(
+						new TelegramButton(
+								"Удиви меня",
+								TelegramRecommendationService.SURPRISE_CALLBACK),
+						new TelegramButton(
+								"Подобрать по продуктам",
+								TelegramRecommendationService.SELECT_PRODUCTS_CALLBACK)));
+	}
+
+	private boolean hasText(String text) {
+		return text != null && !text.isBlank();
 	}
 
 	private boolean isStartCommand(String text) {

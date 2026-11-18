@@ -1,6 +1,7 @@
 package io.github.baikoff.whattocook.telegram.config;
 
 import io.github.baikoff.whattocook.assistant.service.DishRecommendationService;
+import io.github.baikoff.whattocook.image.storage.RecipeImageContentReader;
 import io.github.baikoff.whattocook.telegram.client.TelegramBotApiClient;
 import io.github.baikoff.whattocook.telegram.polling.TelegramLongPollingRunner;
 import io.github.baikoff.whattocook.telegram.service.TelegramRecommendationService;
@@ -9,6 +10,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import tools.jackson.databind.ObjectMapper;
 
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(prefix = "app.telegram", name = "enabled", havingValue = "true")
@@ -16,14 +18,17 @@ import org.springframework.context.annotation.Configuration;
 public class TelegramConfiguration {
 
 	@Bean
-	TelegramBotApiClient telegramBotApiClient(TelegramProperties properties) {
-		return new TelegramBotApiClient(properties);
+	TelegramBotApiClient telegramBotApiClient(
+			TelegramProperties properties,
+			ObjectMapper objectMapper) {
+		return new TelegramBotApiClient(properties, objectMapper);
 	}
 
 	@Bean
 	TelegramRecommendationService telegramRecommendationService(
-			DishRecommendationService recommendationService) {
-		return new TelegramRecommendationService(recommendationService);
+			DishRecommendationService recommendationService,
+			RecipeImageContentReader imageContentReader) {
+		return new TelegramRecommendationService(recommendationService, imageContentReader);
 	}
 
 	@Bean

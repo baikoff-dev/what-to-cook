@@ -56,12 +56,12 @@ class TelegramSurpriseAcceptanceTest extends AbstractIntegrationTest {
 		assertThat(TELEGRAM_API.callbackAnswerBody())
 				.contains("\"callback_query_id\":\"surprise-callback-77\"");
 		assertThat(TELEGRAM_API.outgoingMessageBody())
-				.contains("\"chat_id\":42")
+				.contains("42")
 				.contains("🍽")
 				.contains("Сложность:")
 				.contains("мин")
 				.contains("Удиви ещё раз")
-				.contains("\"callback_data\":\"SURPRISE\"");
+				.contains("SURPRISE");
 	}
 
 	private static final class FakeTelegramApi {
@@ -101,6 +101,7 @@ class TelegramSurpriseAcceptanceTest extends AbstractIntegrationTest {
 				server.createContext("/bottest-token/getUpdates", this::handleGetUpdates);
 				server.createContext("/bottest-token/answerCallbackQuery", this::handleCallbackAnswer);
 				server.createContext("/bottest-token/sendMessage", this::handleSendMessage);
+				server.createContext("/bottest-token/sendPhoto", this::handleSendMessage);
 				server.start();
 			} catch (IOException exception) {
 				throw new IllegalStateException("Не удалось запустить поддельный Telegram API", exception);
