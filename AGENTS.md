@@ -2,7 +2,8 @@
 
 ## Проект
 
-- Это приложение на Java и Spring Boot.
+- Backend приложения написан на Java и Spring Boot.
+- Отдельный frontend находится в `frontend` и использует React, TypeScript и Vite.
 - Базовый Java-пакет — `io.github.baikoff.whattocook`.
 - Для Maven используется Wrapper, включённый в репозиторий.
 - Основной язык интерфейса и описательной документации — русский.
@@ -43,3 +44,6 @@
 - Остановка базы: `docker compose stop`
 - Тесты в Unix: `./mvnw test`
 - Запуск в Unix: `./mvnw spring-boot:run`
+- Установка frontend-зависимостей в Windows: `cd frontend; npm.cmd install`
+- Запуск frontend в Windows: `cd frontend; npm.cmd run dev`
+- Проверки frontend в Windows: `cd frontend; npm.cmd run lint; npm.cmd run test; npm.cmd run build`
