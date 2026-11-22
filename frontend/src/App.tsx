@@ -17,9 +17,14 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { ApplicationShell } from '@/components/layout/application-shell'
+import { RecipeArchivePage } from '@/features/archive/components/recipe-archive-page'
 import { FavoriteRecipesPage } from '@/features/favorites/components/favorite-recipes-page'
 import { CookingHistoryPage } from '@/features/history/components/cooking-history-page'
 import { CookingRecordPage } from '@/features/history/components/cooking-record-page'
+import {
+  RecipeCreatePage,
+  RecipeEditPage,
+} from '@/features/management/components/recipe-form-page'
 import { RecipeCatalogSection } from '@/features/recipes/components/recipe-catalog-section'
 import { RecipeDetailsPage } from '@/features/recipes/components/recipe-details-page'
 import { backendUrl } from '@/lib/backend-url'
@@ -52,7 +57,10 @@ function App() {
         <Route element={<ApplicationShell />}>
           <Route index element={<HomePage />} />
           <Route path="recipes/favorites" element={<FavoriteRecipesPage />} />
+          <Route path="recipes/archive" element={<RecipeArchivePage />} />
           <Route path="recipes/history" element={<CookingHistoryPage />} />
+          <Route path="recipes/new" element={<RecipeCreatePage />} />
+          <Route path="recipes/:recipeId/edit" element={<RecipeEditPage />} />
           <Route
             path="recipes/:recipeId/cookings/new"
             element={<CookingRecordPage />}

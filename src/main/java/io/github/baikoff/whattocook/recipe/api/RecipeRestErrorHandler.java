@@ -1,5 +1,6 @@
 package io.github.baikoff.whattocook.recipe.api;
 
+import io.github.baikoff.whattocook.recipe.service.RecipeConflictException;
 import io.github.baikoff.whattocook.recipe.service.RecipeNotFoundException;
 
 import java.util.LinkedHashMap;
@@ -21,6 +22,12 @@ public class RecipeRestErrorHandler {
 	@ExceptionHandler(RecipeNotFoundException.class)
 	public ResponseEntity<ApiErrorResponse> handleNotFound(RecipeNotFoundException exception) {
 		return ResponseEntity.status(HttpStatus.NOT_FOUND)
+				.body(new ApiErrorResponse(exception.getMessage()));
+	}
+
+	@ExceptionHandler(RecipeConflictException.class)
+	public ResponseEntity<ApiErrorResponse> handleConflict(RecipeConflictException exception) {
+		return ResponseEntity.status(HttpStatus.CONFLICT)
 				.body(new ApiErrorResponse(exception.getMessage()));
 	}
 

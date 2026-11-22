@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import {
   AlertTriangle,
+  Archive,
   ArrowLeft,
   ChefHat,
   Clock3,
@@ -12,11 +13,12 @@ import {
   RefreshCw,
   RotateCcw,
 } from 'lucide-react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { setRecipeArchived } from '@/features/archive/api/recipe-archive'
 import { setRecipeFavorite } from '@/features/favorites/api/recipe-favorites'
 import {
   loadRecipeDetails,
@@ -32,10 +34,13 @@ type DetailsState =
 export function RecipeDetailsPage() {
   const { recipeId } = useParams()
   const id = Number(recipeId)
+  const navigate = useNavigate()
   const [state, setState] = useState<DetailsState>({ status: 'loading' })
   const [servings, setServings] = useState('')
   const [favoritePending, setFavoritePending] = useState(false)
   const [favoriteError, setFavoriteError] = useState<string | null>(null)
+  const [archivePending, setArchivePending] = useState(false)
+  const [archiveError, setArchiveError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!Number.isInteger(id) || id < 1) {
@@ -128,6 +133,28 @@ export function RecipeDetailsPage() {
     }
   }
 
+  const archiveRecipe = async () => {
+    if (state.status !== 'success' || archivePending) {
+      return
+    }
+
+    setArchivePending(true)
+    setArchiveError(null)
+
+    try {
+      await setRecipeArchived(id, true)
+      navigate('/recipes/archive')
+    } catch (error: unknown) {
+      setArchiveError(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось перенести рецепт в архив',
+      )
+    } finally {
+      setArchivePending(false)
+    }
+  }
+
   if (!Number.isInteger(id) || id < 1) {
     return (
       <DetailsError
@@ -180,11 +207,20 @@ export function RecipeDetailsPage() {
               Отметить приготовленным
             </Link>
           </Button>
+          <Button
+            disabled={archivePending}
+            onClick={archiveRecipe}
+            size="sm"
+            variant="outline"
+          >
+            <Archive aria-hidden="true" data-icon="inline-start" />
+            {archivePending ? 'Переносим...' : 'Перенести в архив'}
+          </Button>
           <Button asChild size="sm" variant="outline">
-            <a href={backendUrl(`/recipes/${recipe.id}/edit`)}>
+            <Link to={`/recipes/${recipe.id}/edit`}>
               <Pencil aria-hidden="true" data-icon="inline-start" />
               Редактировать
-            </a>
+            </Link>
           </Button>
         </div>
       </div>
@@ -192,6 +228,12 @@ export function RecipeDetailsPage() {
       {favoriteError && (
         <p className="mb-5 text-sm text-destructive" role="alert">
           {favoriteError}
+        </p>
+      )}
+
+      {archiveError && (
+        <p className="mb-5 text-sm text-destructive" role="alert">
+          {archiveError}
         </p>
       )}
 

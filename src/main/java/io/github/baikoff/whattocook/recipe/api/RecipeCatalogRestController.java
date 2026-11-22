@@ -56,6 +56,11 @@ public class RecipeCatalogRestController {
 		return RecipeCatalogResponse.from(recipeCatalogService.getFavorites());
 	}
 
+	@GetMapping("/archive")
+	public RecipeCatalogResponse getArchive() {
+		return RecipeCatalogResponse.from(recipeCatalogService.getArchive());
+	}
+
 	@GetMapping("/{id}")
 	public RecipeDetailsResponse getRecipe(
 			@PathVariable long id,

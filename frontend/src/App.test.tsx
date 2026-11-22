@@ -381,7 +381,7 @@ describe('история приготовления', () => {
     expect(
       await screen.findByRole('heading', { name: 'История приготовления' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Гречка с тушёной курицей')).toBeInTheDocument()
+    expect(await screen.findByText('Гречка с тушёной курицей')).toBeInTheDocument()
     expect(screen.getByText('18.11.2026')).toBeInTheDocument()
     expect(screen.getByText('Оценка: 4 из 5')).toBeInTheDocument()
     expect(screen.getByText('Добавить меньше соли')).toBeInTheDocument()
@@ -406,6 +406,286 @@ describe('история приготовления', () => {
     ).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/api/cooking-history/41', {
       method: 'DELETE',
+    })
+  })
+})
+
+describe('архив рецептов', () => {
+  it('архивирует рецепт, показывает его в архиве и восстанавливает без старого интерфейса', async () => {
+    const catalogRecipe = recipe({
+      id: 1,
+      name: 'Гречка с тушёной курицей',
+    })
+    let archived = false
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
+      const url = String(input)
+
+      if (url === '/api/recipes/filter-options') {
+        return response({
+          difficulties: [],
+          equipment: [],
+          cookingMethods: [],
+          cuisines: [],
+          origins: [],
+        })
+      }
+      if (url === '/api/recipes/1') {
+        return response(recipeDetails(2, '300'))
+      }
+      if (url === '/api/recipes/1/archive' && init?.method === 'PUT') {
+        archived = true
+        return response({ archived })
+      }
+      if (url === '/api/recipes/archive') {
+        return response({
+          items: archived
+            ? [{ ...catalogRecipe, status: 'В архиве' }]
+            : [],
+          total: archived ? 1 : 0,
+        })
+      }
+      if (url === '/api/recipes/1/archive' && init?.method === 'DELETE') {
+        archived = false
+        return response({ archived })
+      }
+      return response({ items: [catalogRecipe], total: 1 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+    const archiveShortcut = await screen.findByRole('link', { name: 'Архив' })
+    expect(archiveShortcut).toHaveAttribute('href', '/recipes/archive')
+
+    fireEvent.click(
+      await screen.findByRole('link', { name: 'Гречка с тушёной курицей' }),
+    )
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Перенести в архив' }),
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: 'Архив рецептов' }),
+    ).toBeInTheDocument()
+    expect(await screen.findByText('Гречка с тушёной курицей')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/recipes/1/archive', {
+      method: 'PUT',
+    })
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Восстановить рецепт: Гречка с тушёной курицей',
+      }),
+    )
+
+    expect(await screen.findByText('В архиве пока нет рецептов')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/recipes/1/archive', {
+      method: 'DELETE',
+    })
+  })
+})
+
+describe('управление рецептами', () => {
+  it('создаёт полный рецепт в React и открывает его карточку', async () => {
+    window.history.replaceState(null, '', '/recipes/new')
+    const formOptions = {
+      difficulties: [{ value: 'EASY', name: 'Легко' }],
+      statuses: [{ value: 'UNTESTED', name: 'Не проверен' }],
+      origins: [{ value: 'PERSONAL', name: 'Личный' }],
+      measurementUnits: [{ value: 'GRAM', name: 'г' }],
+      substitutionTypes: [
+        { value: 'CLOSE', name: 'Близкая к классическому рецепту' },
+      ],
+      equipment: [{ id: 1, name: 'Электрическая плита' }],
+      cookingMethods: [{ id: 2, name: 'Варка' }],
+      cuisines: [{ id: 3, name: 'Восточнославянская' }],
+    }
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
+      const url = String(input)
+
+      if (url === '/api/recipes/form-options') {
+        return response(formOptions)
+      }
+      if (url === '/api/recipes' && init?.method === 'POST') {
+        return response({ id: 42 })
+      }
+      if (url === '/api/recipes/42') {
+        return response({ ...recipeDetails(2, '150'), id: 42, name: 'Рис с овощами' })
+      }
+      return response({ items: [], total: 0 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    expect(
+      await screen.findByRole('heading', { name: 'Новый рецепт' }),
+    ).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/recipes/form-options')
+
+    fireEvent.change(screen.getByLabelText('Название на русском'), {
+      target: { value: 'Рис с овощами' },
+    })
+    fireEvent.change(screen.getByLabelText('Описание'), {
+      target: { value: 'Простой рис с сезонными овощами.' },
+    })
+    fireEvent.change(screen.getByLabelText('Кухня'), {
+      target: { value: '3' },
+    })
+    fireEvent.click(screen.getByLabelText('Электрическая плита'))
+    fireEvent.click(screen.getByLabelText('Варка'))
+    fireEvent.change(screen.getByLabelText('Ингредиент 1'), {
+      target: { value: 'Рис' },
+    })
+    fireEvent.change(screen.getByLabelText('Количество ингредиента 1'), {
+      target: { value: '150' },
+    })
+    fireEvent.change(screen.getByLabelText('Шаг 1'), {
+      target: { value: 'Промыть рис и сварить до готовности.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить рецепт' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/recipes',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+    })
+    const createCall = fetchMock.mock.calls.find(
+      ([input, init]) => String(input) === '/api/recipes' && init?.method === 'POST',
+    )
+    const payload = JSON.parse(String(createCall?.[1]?.body))
+    expect(payload).toMatchObject({
+      nameRu: 'Рис с овощами',
+      description: 'Простой рис с сезонными овощами.',
+      cuisineId: 3,
+      equipmentIds: [1],
+      cookingMethodIds: [2],
+      ingredients: [{ name: 'Рис', amount: 150, unit: 'GRAM' }],
+      steps: [{ instruction: 'Промыть рис и сварить до готовности.' }],
+    })
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/recipes/42')
+    })
+  })
+
+  it('загружает существующий рецепт и сохраняет изменения без потери вложенных данных', async () => {
+    window.history.replaceState(null, '', '/recipes/42/edit')
+    const formOptions = {
+      difficulties: [{ value: 'EASY', name: 'Легко' }],
+      statuses: [{ value: 'UNTESTED', name: 'Не проверен' }],
+      origins: [{ value: 'PERSONAL', name: 'Личный' }],
+      measurementUnits: [{ value: 'GRAM', name: 'г' }],
+      substitutionTypes: [
+        { value: 'CLOSE', name: 'Близкая к классическому рецепту' },
+      ],
+      equipment: [{ id: 1, name: 'Электрическая плита' }],
+      cookingMethods: [{ id: 2, name: 'Варка' }],
+      cuisines: [{ id: 3, name: 'Восточнославянская' }],
+    }
+    const editRecipe = {
+      id: 42,
+      version: 7,
+      nameRu: 'Рис с овощами',
+      nameEn: 'Rice with vegetables',
+      description: 'Простой рис с сезонными овощами.',
+      servings: 2,
+      preparationMinutes: 10,
+      cookingMinutes: 30,
+      difficulty: 'EASY',
+      status: 'UNTESTED',
+      cuisineId: 3,
+      origin: 'PERSONAL',
+      sourceName: 'Домашний рецепт',
+      sourceUrl: '',
+      videoUrl: '',
+      personalNotes: 'Не переварить рис',
+      equipmentIds: [1],
+      cookingMethodIds: [2],
+      ingredients: [
+        { name: 'Рис', amount: 150, unit: 'GRAM', optional: false },
+      ],
+      substitutions: [
+        {
+          originalIngredientName: 'Рис',
+          substituteIngredientName: 'Булгур',
+          amount: 150,
+          unit: 'GRAM',
+          type: 'CLOSE',
+          impactNote: 'Текстура станет более рассыпчатой',
+        },
+      ],
+      steps: [
+        {
+          id: 9,
+          instruction: 'Промыть рис.',
+          imageUrl: '/images/recipes/rice-step.jpg',
+        },
+      ],
+      mainImageUrl: '/images/recipes/rice.jpg',
+    }
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
+      const url = String(input)
+
+      if (url === '/api/recipes/form-options') {
+        return response(formOptions)
+      }
+      if (url === '/api/recipes/42/edit') {
+        return response(editRecipe)
+      }
+      if (url === '/api/recipes/42' && init?.method === 'PUT') {
+        return response({ id: 42 })
+      }
+      if (url === '/api/recipes/42') {
+        return response({ ...recipeDetails(2, '150'), id: 42, name: 'Рис с овощами и зеленью' })
+      }
+      return response({ items: [], total: 0 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    expect(
+      await screen.findByRole('heading', { name: 'Редактирование рецепта' }),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText('Название на русском')).toHaveValue('Рис с овощами')
+    expect(screen.getByLabelText('Ингредиент 1')).toHaveValue('Рис')
+    expect(screen.getByLabelText('Ингредиент для замены 1')).toHaveValue('Булгур')
+    expect(screen.getByLabelText('Шаг 1')).toHaveValue('Промыть рис.')
+    expect(screen.getByText('Текущая обложка сохранится')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Название на русском'), {
+      target: { value: 'Рис с овощами и зеленью' },
+    })
+    fireEvent.change(screen.getByLabelText('Шаг 1'), {
+      target: { value: 'Промыть рис и сварить до готовности.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить изменения' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/recipes/42',
+        expect.objectContaining({
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+    })
+    const updateCall = fetchMock.mock.calls.find(
+      ([input, init]) => String(input) === '/api/recipes/42' && init?.method === 'PUT',
+    )
+    const payload = JSON.parse(String(updateCall?.[1]?.body))
+    expect(payload).toMatchObject({
+      version: 7,
+      nameRu: 'Рис с овощами и зеленью',
+      ingredients: [{ name: 'Рис', amount: 150, unit: 'GRAM' }],
+      substitutions: [{ substituteIngredientName: 'Булгур' }],
+      steps: [{ id: 9, instruction: 'Промыть рис и сварить до готовности.' }],
+    })
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/recipes/42')
     })
   })
 })

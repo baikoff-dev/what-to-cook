@@ -137,17 +137,17 @@ export function RecipeCatalogSection() {
             </p>
           </div>
           <Button asChild>
-            <a href={backendUrl('/recipes/new')}>
+            <Link to="/recipes/new">
               <Plus aria-hidden="true" data-icon="inline-start" />
               Добавить рецепт
-            </a>
+            </Link>
           </Button>
         </div>
 
         <nav aria-label="Разделы приложения" className="mb-6 flex flex-wrap gap-2">
           {shortcuts.map(({ icon: Icon, label, path }) => (
             <Button asChild key={path} size="sm" variant="outline">
-              {path === '/recipes/favorites' || path === '/recipes/history' ? (
+              {path === '/recipes/favorites' || path === '/recipes/history' || path === '/recipes/archive' ? (
                 <Link to={path}>
                   <Icon aria-hidden="true" data-icon="inline-start" />
                   {label}
