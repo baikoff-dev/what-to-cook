@@ -17,7 +17,7 @@ export function ApplicationShell() {
             </span>
             Что приготовить?
           </Link>
-          <Badge variant="secondary">Этап 9.5</Badge>
+          <Badge variant="secondary">Этап 9.6</Badge>
         </div>
       </header>
 

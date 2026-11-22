@@ -18,6 +18,8 @@ import {
 } from '@/components/ui/card'
 import { ApplicationShell } from '@/components/layout/application-shell'
 import { FavoriteRecipesPage } from '@/features/favorites/components/favorite-recipes-page'
+import { CookingHistoryPage } from '@/features/history/components/cooking-history-page'
+import { CookingRecordPage } from '@/features/history/components/cooking-record-page'
 import { RecipeCatalogSection } from '@/features/recipes/components/recipe-catalog-section'
 import { RecipeDetailsPage } from '@/features/recipes/components/recipe-details-page'
 import { backendUrl } from '@/lib/backend-url'
@@ -50,6 +52,11 @@ function App() {
         <Route element={<ApplicationShell />}>
           <Route index element={<HomePage />} />
           <Route path="recipes/favorites" element={<FavoriteRecipesPage />} />
+          <Route path="recipes/history" element={<CookingHistoryPage />} />
+          <Route
+            path="recipes/:recipeId/cookings/new"
+            element={<CookingRecordPage />}
+          />
           <Route path="recipes/:recipeId" element={<RecipeDetailsPage />} />
           <Route path="*" element={<Navigate replace to="/" />} />
         </Route>

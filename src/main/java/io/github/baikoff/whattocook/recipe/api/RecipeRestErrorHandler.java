@@ -2,14 +2,19 @@ package io.github.baikoff.whattocook.recipe.api;
 
 import io.github.baikoff.whattocook.recipe.service.RecipeNotFoundException;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice(basePackages = {
 		"io.github.baikoff.whattocook.recipe.api",
-		"io.github.baikoff.whattocook.favorite.api"
+		"io.github.baikoff.whattocook.favorite.api",
+		"io.github.baikoff.whattocook.history.api"
 })
 public class RecipeRestErrorHandler {
 
@@ -25,6 +30,18 @@ public class RecipeRestErrorHandler {
 				.body(new ApiErrorResponse(exception.getMessage()));
 	}
 
+	@ExceptionHandler(MethodArgumentNotValidException.class)
+	public ResponseEntity<ValidationErrorResponse> handleValidation(
+			MethodArgumentNotValidException exception) {
+		var fieldErrors = new LinkedHashMap<String, String>();
+		exception.getBindingResult().getFieldErrors().forEach(error ->
+				fieldErrors.putIfAbsent(error.getField(), error.getDefaultMessage()));
+		return ResponseEntity.badRequest().body(new ValidationErrorResponse(fieldErrors));
+	}
+
 	public record ApiErrorResponse(String message) {
+	}
+
+	public record ValidationErrorResponse(Map<String, String> fieldErrors) {
 	}
 }

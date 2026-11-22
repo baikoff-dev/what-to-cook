@@ -147,7 +147,7 @@ export function RecipeCatalogSection() {
         <nav aria-label="Разделы приложения" className="mb-6 flex flex-wrap gap-2">
           {shortcuts.map(({ icon: Icon, label, path }) => (
             <Button asChild key={path} size="sm" variant="outline">
-              {path === '/recipes/favorites' ? (
+              {path === '/recipes/favorites' || path === '/recipes/history' ? (
                 <Link to={path}>
                   <Icon aria-hidden="true" data-icon="inline-start" />
                   {label}

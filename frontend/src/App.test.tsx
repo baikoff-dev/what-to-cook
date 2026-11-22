@@ -300,6 +300,116 @@ describe('страница избранного', () => {
   })
 })
 
+describe('история приготовления', () => {
+  it('записывает приготовление, показывает его в истории и удаляет без старого интерфейса', async () => {
+    const catalogRecipe = recipe({
+      id: 1,
+      name: 'Гречка с тушёной курицей',
+    })
+    let historyItems: Array<{
+      id: number
+      recipeId: number
+      recipeName: string
+      cookedOn: string
+      rating: number | null
+      note: string | null
+      archived: boolean
+    }> = []
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
+      const url = String(input)
+
+      if (url === '/api/recipes/filter-options') {
+        return response({
+          difficulties: [],
+          equipment: [],
+          cookingMethods: [],
+          cuisines: [],
+          origins: [],
+        })
+      }
+      if (url === '/api/recipes/1') {
+        return response(recipeDetails(2, '300'))
+      }
+      if (url === '/api/recipes/1/cookings' && init?.method === 'POST') {
+        historyItems = [
+          {
+            id: 41,
+            recipeId: 1,
+            recipeName: 'Гречка с тушёной курицей',
+            cookedOn: '2026-11-18',
+            rating: 4,
+            note: 'Добавить меньше соли',
+            archived: false,
+          },
+        ]
+        return response({ id: 41 })
+      }
+      if (url === '/api/cooking-history' && init === undefined) {
+        return response({ items: historyItems, total: historyItems.length })
+      }
+      if (url === '/api/cooking-history/41' && init?.method === 'DELETE') {
+        historyItems = []
+        return response(null)
+      }
+      return response({ items: [catalogRecipe], total: 1 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+    fireEvent.click(
+      await screen.findByRole('link', { name: 'Гречка с тушёной курицей' }),
+    )
+    fireEvent.click(
+      await screen.findByRole('link', { name: 'Отметить приготовленным' }),
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: 'Отметить приготовление' }),
+    ).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Дата приготовления'), {
+      target: { value: '2026-11-18' },
+    })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Оценка' }), {
+      target: { value: '4' },
+    })
+    fireEvent.change(screen.getByLabelText('Заметка'), {
+      target: { value: 'Добавить меньше соли' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить в историю' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'История приготовления' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Гречка с тушёной курицей')).toBeInTheDocument()
+    expect(screen.getByText('18.11.2026')).toBeInTheDocument()
+    expect(screen.getByText('Оценка: 4 из 5')).toBeInTheDocument()
+    expect(screen.getByText('Добавить меньше соли')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/recipes/1/cookings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cookedOn: '2026-11-18',
+        rating: 4,
+        note: 'Добавить меньше соли',
+      }),
+    })
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Удалить запись о приготовлении: Гречка с тушёной курицей',
+      }),
+    )
+
+    expect(
+      await screen.findByText('История пока пуста'),
+    ).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/cooking-history/41', {
+      method: 'DELETE',
+    })
+  })
+})
+
 function recipe(overrides: { id: number; name: string }) {
   return {
     id: overrides.id,

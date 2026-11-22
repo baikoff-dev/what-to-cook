@@ -175,10 +175,10 @@ export function RecipeDetailsPage() {
                 : 'Добавить в избранное'}
           </Button>
           <Button asChild size="sm" variant="outline">
-            <a href={backendUrl(`/recipes/${recipe.id}/cookings/new`)}>
+            <Link to={`/recipes/${recipe.id}/cookings/new`}>
               <NotebookPen aria-hidden="true" data-icon="inline-start" />
               Отметить приготовленным
-            </a>
+            </Link>
           </Button>
           <Button asChild size="sm" variant="outline">
             <a href={backendUrl(`/recipes/${recipe.id}/edit`)}>
