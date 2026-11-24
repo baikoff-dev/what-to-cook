@@ -38,6 +38,12 @@ export interface RecipeSubstitutionInput {
 export interface RecipeStepInput {
   id: number | null
   instruction: string
+  removeImage?: boolean
+}
+
+export interface StepImageUpload {
+  stepIndex: number
+  file: File
 }
 
 export interface RecipeInput {
@@ -61,6 +67,7 @@ export interface RecipeInput {
   ingredients: RecipeIngredientInput[]
   substitutions: RecipeSubstitutionInput[]
   steps: RecipeStepInput[]
+  removeMainImage?: boolean
 }
 
 export type RecipeEditResponse = Omit<
@@ -121,16 +128,48 @@ export async function createRecipe(input: RecipeInput): Promise<{ id: number }> 
 export async function updateRecipe(
   recipeId: number,
   input: RecipeInput,
+  mainImage: File | null = null,
+  stepImages: StepImageUpload[] = [],
 ): Promise<{ id: number }> {
-  const response = await fetch(`/api/recipes/${recipeId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  })
+  const request: RequestInit = mainImage || stepImages.length > 0
+    ? multipartRequest(input, mainImage, stepImages)
+    : {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      }
+  const response = await fetch(`/api/recipes/${recipeId}`, request)
 
   await ensureSaved(response)
 
   return response.json() as Promise<{ id: number }>
+}
+
+function multipartRequest(
+  input: RecipeInput,
+  mainImage: File | null,
+  stepImages: StepImageUpload[],
+): RequestInit {
+  const body = new FormData()
+  body.append(
+    'recipe',
+    new Blob([JSON.stringify(input)], { type: 'application/json' }),
+  )
+  if (mainImage) {
+    body.append('mainImage', mainImage)
+  }
+  if (stepImages.length > 0) {
+    body.append(
+      'stepImageIndexes',
+      new Blob(
+        [JSON.stringify(stepImages.map(({ stepIndex }) => stepIndex))],
+        { type: 'application/json' },
+      ),
+    )
+    stepImages.forEach(({ file }) => body.append('stepImages', file))
+  }
+
+  return { method: 'PUT', body }
 }
 
 async function ensureSaved(response: Response) {

@@ -49,6 +49,10 @@ interface StepDraft {
   id: number | null
   instruction: string
   imageUrl: string | null
+  image: File | null
+  imagePreview: string | null
+  imageError: string | null
+  removeImage: boolean
 }
 
 interface RecipeDraft {
@@ -103,6 +107,10 @@ function RecipeFormPage({ recipeId }: { recipeId?: number }) {
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [requestNumber, setRequestNumber] = useState(0)
+  const [mainImage, setMainImage] = useState<File | null>(null)
+  const [mainImagePreview, setMainImagePreview] = useState<string | null>(null)
+  const [mainImageError, setMainImageError] = useState<string | null>(null)
+  const [removeMainImage, setRemoveMainImage] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -115,6 +123,10 @@ function RecipeFormPage({ recipeId }: { recipeId?: number }) {
         if (active) {
           setOptionsState({ status: 'success', options })
           setDraft(recipe ? draftFromResponse(recipe) : emptyRecipeDraft(options))
+          setMainImage(null)
+          setMainImagePreview(null)
+          setMainImageError(null)
+          setRemoveMainImage(false)
         }
       })
       .catch((requestError: unknown) => {
@@ -153,9 +165,12 @@ function RecipeFormPage({ recipeId }: { recipeId?: number }) {
     setFieldErrors({})
 
     try {
-      const input = toRecipeInput(draft)
+      const input = toRecipeInput(draft, removeMainImage)
+      const stepImages = draft.steps.flatMap((step, stepIndex) =>
+        step.image ? [{ stepIndex, file: step.image }] : [],
+      )
       const result = recipeId
-        ? await updateRecipe(recipeId, input)
+        ? await updateRecipe(recipeId, input, mainImage, stepImages)
         : await createRecipe(input)
       navigate(`/recipes/${result.id}`)
     } catch (requestError: unknown) {
@@ -209,28 +224,100 @@ function RecipeFormPage({ recipeId }: { recipeId?: number }) {
         </h1>
         <p className="mt-4 text-lg leading-8 text-muted-foreground">
           {recipeId
-            ? 'Измени данные рецепта. Загруженные обложка и фотографии шагов сохранятся без изменений.'
+            ? 'Измени данные рецепта. Обложку и изображения шагов можно заменить перед сохранением.'
             : 'Сохрани точные количества, оборудование и последовательность приготовления. Обложку и фотографии шагов можно будет добавить на следующем этапе.'}
         </p>
       </header>
 
       <form className="mt-8 grid gap-6" noValidate onSubmit={submit}>
-        {draft.mainImageUrl && (
-          <Card>
-            <CardContent className="flex flex-col gap-4 pt-6 sm:flex-row sm:items-center">
-              <img
-                alt={`Текущая обложка рецепта ${draft.nameRu}`}
-                className="aspect-video w-full rounded-xl object-cover sm:w-48"
-                src={backendUrl(draft.mainImageUrl)}
-              />
+        {recipeId && (
+          <FormSection title="Обложка">
+            <div className="grid gap-5 sm:grid-cols-[12rem_1fr] sm:items-center">
+              {mainImagePreview ? (
+                <img
+                  alt="Предпросмотр новой обложки"
+                  className="aspect-video w-full rounded-xl object-cover"
+                  src={mainImagePreview}
+                />
+              ) : draft.mainImageUrl && !removeMainImage ? (
+                <img
+                  alt={`Текущая обложка рецепта ${draft.nameRu}`}
+                  className="aspect-video w-full rounded-xl object-cover"
+                  src={backendUrl(draft.mainImageUrl)}
+                />
+              ) : (
+                <div className="grid aspect-video place-items-center rounded-xl border border-dashed bg-muted/30 text-sm text-muted-foreground">
+                  Обложка не добавлена
+                </div>
+              )}
+
               <div>
-                <p className="font-semibold">Текущая обложка сохранится</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Заменить или удалить её можно будет на следующем этапе работы с изображениями.
+                {draft.mainImageUrl && !mainImage && !removeMainImage && (
+                  <p className="mb-3 font-semibold">Текущая обложка сохранится</p>
+                )}
+                {removeMainImage && (
+                  <p className="mb-3 font-semibold text-destructive">
+                    Обложка будет удалена после сохранения
+                  </p>
+                )}
+                {mainImage && (
+                  <p className="mb-3 font-semibold">Новая обложка заменит текущую после сохранения</p>
+                )}
+                <label className="text-sm font-semibold" htmlFor="main-image">
+                  Новая обложка
+                </label>
+                <input
+                  accept="image/png,image/jpeg,.png,.jpg,.jpeg"
+                  className="mt-2 block w-full text-sm file:mr-4 file:rounded-lg file:border-0 file:bg-secondary file:px-4 file:py-2 file:font-medium file:text-secondary-foreground"
+                  id="main-image"
+                  onChange={(event) => selectMainImage(event.target.files?.[0] ?? null)}
+                  type="file"
+                />
+                <p className="mt-2 text-sm text-muted-foreground">
+                  JPEG или PNG, не больше 5 МБ.
                 </p>
+                {(mainImageError || fieldErrors.mainImage) && (
+                  <p className="mt-2 text-sm text-destructive" role="alert">
+                    {mainImageError ?? fieldErrors.mainImage}
+                  </p>
+                )}
+                {mainImage && (
+                  <Button
+                    className="mt-3"
+                    onClick={() => selectMainImage(null)}
+                    size="sm"
+                    type="button"
+                    variant="ghost"
+                  >
+                    Отменить выбор новой обложки
+                  </Button>
+                )}
+                {draft.mainImageUrl && !mainImage && !removeMainImage && (
+                  <Button
+                    className="mt-3"
+                    onClick={() => setRemoveMainImage(true)}
+                    size="sm"
+                    type="button"
+                    variant="destructive"
+                  >
+                    <Trash2 aria-hidden="true" data-icon="inline-start" />
+                    Удалить обложку
+                  </Button>
+                )}
+                {removeMainImage && (
+                  <Button
+                    className="mt-3"
+                    onClick={() => setRemoveMainImage(false)}
+                    size="sm"
+                    type="button"
+                    variant="ghost"
+                  >
+                    Отменить удаление обложки
+                  </Button>
+                )}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </FormSection>
         )}
         <FormSection title="Основная информация">
           <div className="grid gap-5 md:grid-cols-2">
@@ -534,24 +621,115 @@ function RecipeFormPage({ recipeId }: { recipeId?: number }) {
           <div className="grid gap-4">
             {draft.steps.map((step, index) => (
               <div className="grid gap-3 rounded-xl border bg-muted/20 p-4 md:grid-cols-[1fr_auto] md:items-end" key={`step-${index}`}>
-                <Field
-                  error={fieldErrors[`steps[${index}].instruction`]}
-                  id={`step-${index}-instruction`}
-                  label={`Шаг ${index + 1}`}
-                >
-                  <textarea
-                    className={textAreaClass}
+                <div className="grid gap-4">
+                  <Field
+                    error={fieldErrors[`steps[${index}].instruction`]}
                     id={`step-${index}-instruction`}
-                    maxLength={5000}
-                    onChange={(event) => updateStep(index, event.target.value)}
-                    value={step.instruction}
-                  />
-                  {step.imageUrl && (
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Изображение этого шага сохранится.
-                    </p>
+                    label={`Шаг ${index + 1}`}
+                  >
+                    <textarea
+                      className={textAreaClass}
+                      id={`step-${index}-instruction`}
+                      maxLength={5000}
+                      onChange={(event) => updateStep(index, event.target.value)}
+                      value={step.instruction}
+                    />
+                  </Field>
+                  {recipeId && (
+                    <div className="grid gap-4 sm:grid-cols-[12rem_1fr] sm:items-center">
+                      {step.imagePreview ? (
+                        <img
+                          alt={`Предпросмотр изображения шага ${index + 1}`}
+                          className="aspect-video w-full rounded-xl object-cover"
+                          src={step.imagePreview}
+                        />
+                      ) : step.imageUrl && !step.removeImage ? (
+                        <img
+                          alt={`Текущее изображение шага ${index + 1}`}
+                          className="aspect-video w-full rounded-xl object-cover"
+                          src={backendUrl(step.imageUrl)}
+                        />
+                      ) : (
+                        <div className="grid aspect-video place-items-center rounded-xl border border-dashed bg-background text-sm text-muted-foreground">
+                          Изображение не добавлено
+                        </div>
+                      )}
+                      <div>
+                        {step.imageUrl && !step.image && !step.removeImage && (
+                          <p className="mb-3 text-sm font-semibold">
+                            Текущее изображение шага сохранится
+                          </p>
+                        )}
+                        {step.removeImage && (
+                          <p className="mb-3 text-sm font-semibold text-destructive">
+                            Изображение шага {index + 1} будет удалено после сохранения
+                          </p>
+                        )}
+                        {step.image && (
+                          <p className="mb-3 text-sm font-semibold">
+                            Новое изображение заменит текущее после сохранения
+                          </p>
+                        )}
+                        <label
+                          className="text-sm font-semibold"
+                          htmlFor={`step-${index}-image`}
+                        >
+                          Новое изображение шага {index + 1}
+                        </label>
+                        <input
+                          accept="image/png,image/jpeg,.png,.jpg,.jpeg"
+                          className="mt-2 block w-full text-sm file:mr-4 file:rounded-lg file:border-0 file:bg-secondary file:px-4 file:py-2 file:font-medium file:text-secondary-foreground"
+                          id={`step-${index}-image`}
+                          onChange={(event) => selectStepImage(index, event.target.files?.[0] ?? null)}
+                          type="file"
+                        />
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          JPEG или PNG, не больше 5 МБ.
+                        </p>
+                        {(step.imageError || fieldErrors[`steps[${index}].image`]) && (
+                          <p className="mt-2 text-sm text-destructive" role="alert">
+                            {step.imageError ?? fieldErrors[`steps[${index}].image`]}
+                          </p>
+                        )}
+                        {step.image && (
+                          <Button
+                            className="mt-3"
+                            onClick={() => selectStepImage(index, null)}
+                            size="sm"
+                            type="button"
+                            variant="ghost"
+                          >
+                            Отменить выбор изображения шага
+                          </Button>
+                        )}
+                        {step.imageUrl && !step.image && !step.removeImage && (
+                          <Button
+                            aria-label={`Удалить изображение шага ${index + 1}`}
+                            className="mt-3"
+                            onClick={() => setStepImageRemoval(index, true)}
+                            size="sm"
+                            type="button"
+                            variant="destructive"
+                          >
+                            <Trash2 aria-hidden="true" data-icon="inline-start" />
+                            Удалить изображение
+                          </Button>
+                        )}
+                        {step.removeImage && (
+                          <Button
+                            className="mt-3"
+                            onClick={() => setStepImageRemoval(index, false)}
+                            size="sm"
+                            type="button"
+                            variant="ghost"
+                          >
+                            Отменить удаление изображения шага
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                   )}
-                </Field>
+                </div>
                 <Button
                   aria-label={`Удалить шаг ${index + 1}`}
                   disabled={draft.steps.length === 1}
@@ -641,6 +819,42 @@ function RecipeFormPage({ recipeId }: { recipeId?: number }) {
     setDraft((current) => current ? { ...current, [field]: value } : current)
   }
 
+  function selectMainImage(file: File | null) {
+    if (!file) {
+      setMainImage(null)
+      setMainImagePreview(null)
+      setMainImageError(null)
+      return
+    }
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      setMainImage(null)
+      setMainImagePreview(null)
+      setMainImageError('Выбери изображение JPEG или PNG')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setMainImage(null)
+      setMainImagePreview(null)
+      setMainImageError('Изображение должно быть не больше 5 МБ')
+      return
+    }
+
+    setMainImage(file)
+    setMainImagePreview(null)
+    setMainImageError(null)
+    setRemoveMainImage(false)
+    const reader = new FileReader()
+    reader.addEventListener('load', () => {
+      setMainImagePreview(typeof reader.result === 'string' ? reader.result : null)
+    })
+    reader.readAsDataURL(file)
+    setFieldErrors((current) => {
+      const remaining = { ...current }
+      delete remaining.mainImage
+      return remaining
+    })
+  }
+
   function toggleSelection(field: 'equipmentIds' | 'cookingMethodIds', id: number) {
     setDraft((current) => {
       if (!current) return current
@@ -711,7 +925,7 @@ function RecipeFormPage({ recipeId }: { recipeId?: number }) {
   function addStep() {
     setDraft((current) => current ? {
       ...current,
-      steps: [...current.steps, { id: null, instruction: '', imageUrl: null }],
+      steps: [...current.steps, emptyStep()],
     } : current)
   }
 
@@ -720,6 +934,75 @@ function RecipeFormPage({ recipeId }: { recipeId?: number }) {
       ...current,
       steps: current.steps.map((item, itemIndex) =>
         itemIndex === index ? { ...item, instruction } : item,
+      ),
+    } : current)
+  }
+
+  function selectStepImage(index: number, file: File | null) {
+    if (!file) {
+      updateStepImage(index, { image: null, imagePreview: null, imageError: null })
+      return
+    }
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      updateStepImage(index, {
+        image: null,
+        imagePreview: null,
+        imageError: 'Выбери изображение JPEG или PNG',
+      })
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      updateStepImage(index, {
+        image: null,
+        imagePreview: null,
+        imageError: 'Изображение должно быть не больше 5 МБ',
+      })
+      return
+    }
+
+    updateStepImage(index, {
+      image: file,
+      imagePreview: null,
+      imageError: null,
+      removeImage: false,
+    })
+    const reader = new FileReader()
+    reader.addEventListener('load', () => {
+      updateStepImage(index, {
+        image: file,
+        imagePreview: typeof reader.result === 'string' ? reader.result : null,
+        imageError: null,
+        removeImage: false,
+      })
+    })
+    reader.readAsDataURL(file)
+    setFieldErrors((current) => {
+      const remaining = { ...current }
+      delete remaining[`steps[${index}].image`]
+      return remaining
+    })
+  }
+
+  function updateStepImage(
+    index: number,
+    imageState: Pick<StepDraft, 'image' | 'imagePreview' | 'imageError'>
+      & Partial<Pick<StepDraft, 'removeImage'>>,
+  ) {
+    setDraft((current) => current ? {
+      ...current,
+      steps: current.steps.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, ...imageState } : item,
+      ),
+    } : current)
+  }
+
+  function setStepImageRemoval(index: number, removeImage: boolean) {
+    setDraft((current) => current ? {
+      ...current,
+      steps: current.steps.map((item, itemIndex) =>
+        itemIndex === index
+          ? { ...item, image: null, imagePreview: null, imageError: null, removeImage }
+          : item,
       ),
     } : current)
   }
@@ -916,7 +1199,7 @@ function emptyRecipeDraft(options: RecipeFormOptions): RecipeDraft {
     cookingMethodIds: [],
     ingredients: [emptyIngredient(options)],
     substitutions: [],
-    steps: [{ id: null, instruction: '', imageUrl: null }],
+    steps: [emptyStep()],
     mainImageUrl: null,
   }
 }
@@ -952,8 +1235,24 @@ function draftFromResponse(recipe: RecipeEditResponse): RecipeDraft {
       id: step.id,
       instruction: step.instruction,
       imageUrl: step.imageUrl,
+      image: null,
+      imagePreview: null,
+      imageError: null,
+      removeImage: false,
     })),
     mainImageUrl: recipe.mainImageUrl,
+  }
+}
+
+function emptyStep(): StepDraft {
+  return {
+    id: null,
+    instruction: '',
+    imageUrl: null,
+    image: null,
+    imagePreview: null,
+    imageError: null,
+    removeImage: false,
   }
 }
 
@@ -1017,7 +1316,7 @@ function validateDraft(draft: RecipeDraft) {
   return errors
 }
 
-function toRecipeInput(draft: RecipeDraft): RecipeInput {
+function toRecipeInput(draft: RecipeDraft, removeMainImage = false): RecipeInput {
   return {
     version: draft.version,
     nameRu: draft.nameRu,
@@ -1047,7 +1346,9 @@ function toRecipeInput(draft: RecipeDraft): RecipeInput {
     steps: draft.steps.map((step) => ({
       id: step.id,
       instruction: step.instruction,
+      removeImage: step.removeImage,
     })),
+    removeMainImage,
   }
 }
 

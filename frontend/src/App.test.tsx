@@ -688,6 +688,327 @@ describe('управление рецептами', () => {
       expect(window.location.pathname).toBe('/recipes/42')
     })
   })
+
+  it('показывает предпросмотр и отправляет новую обложку вместе с изменениями рецепта', async () => {
+    window.history.replaceState(null, '', '/recipes/42/edit')
+    const formOptions = {
+      difficulties: [{ value: 'EASY', name: 'Легко' }],
+      statuses: [{ value: 'UNTESTED', name: 'Не проверен' }],
+      origins: [{ value: 'PERSONAL', name: 'Личный' }],
+      measurementUnits: [{ value: 'GRAM', name: 'г' }],
+      substitutionTypes: [{ value: 'CLOSE', name: 'Близкая замена' }],
+      equipment: [{ id: 1, name: 'Электрическая плита' }],
+      cookingMethods: [{ id: 2, name: 'Варка' }],
+      cuisines: [{ id: 3, name: 'Восточнославянская' }],
+    }
+    const editRecipe = {
+      id: 42,
+      version: 7,
+      nameRu: 'Рис с овощами',
+      nameEn: 'Rice with vegetables',
+      description: 'Простой рис с сезонными овощами.',
+      servings: 2,
+      preparationMinutes: 10,
+      cookingMinutes: 30,
+      difficulty: 'EASY',
+      status: 'UNTESTED',
+      cuisineId: 3,
+      origin: 'PERSONAL',
+      sourceName: '',
+      sourceUrl: '',
+      videoUrl: '',
+      personalNotes: '',
+      equipmentIds: [1],
+      cookingMethodIds: [2],
+      ingredients: [
+        { name: 'Рис', amount: 150, unit: 'GRAM', optional: false },
+      ],
+      substitutions: [],
+      steps: [{ id: 9, instruction: 'Промыть рис.', imageUrl: null }],
+      mainImageUrl: '/images/recipes/old-rice.jpg',
+    }
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
+      const url = String(input)
+
+      if (url === '/api/recipes/form-options') return response(formOptions)
+      if (url === '/api/recipes/42/edit') return response(editRecipe)
+      if (url === '/api/recipes/42' && init?.method === 'PUT') return response({ id: 42 })
+      if (url === '/api/recipes/42') return response(recipeDetails(2, '150'))
+      return response({ items: [], total: 0 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    expect(
+      await screen.findByRole('heading', { name: 'Редактирование рецепта' }),
+    ).toBeInTheDocument()
+
+    const newCover = new File(['new cover'], 'new-cover.png', { type: 'image/png' })
+    fireEvent.change(screen.getByLabelText('Новая обложка'), {
+      target: { files: [newCover] },
+    })
+
+    expect(
+      await screen.findByRole('img', { name: 'Предпросмотр новой обложки' }),
+    ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить изменения' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/recipes/42',
+        expect.objectContaining({ method: 'PUT', body: expect.any(FormData) }),
+      )
+    })
+    const updateCall = fetchMock.mock.calls.find(
+      ([input, init]) => String(input) === '/api/recipes/42' && init?.method === 'PUT',
+    )
+    const body = updateCall?.[1]?.body as FormData
+    expect(body.get('mainImage')).toBe(newCover)
+    expect(body.get('recipe')).toBeInstanceOf(Blob)
+  })
+
+  it('помечает текущую обложку на удаление и удаляет её только при сохранении', async () => {
+    window.history.replaceState(null, '', '/recipes/42/edit')
+    const formOptions = {
+      difficulties: [{ value: 'EASY', name: 'Легко' }],
+      statuses: [{ value: 'UNTESTED', name: 'Не проверен' }],
+      origins: [{ value: 'PERSONAL', name: 'Личный' }],
+      measurementUnits: [{ value: 'GRAM', name: 'г' }],
+      substitutionTypes: [{ value: 'CLOSE', name: 'Близкая замена' }],
+      equipment: [{ id: 1, name: 'Электрическая плита' }],
+      cookingMethods: [{ id: 2, name: 'Варка' }],
+      cuisines: [{ id: 3, name: 'Восточнославянская' }],
+    }
+    const editRecipe = {
+      id: 42,
+      version: 7,
+      nameRu: 'Рис с овощами',
+      nameEn: 'Rice with vegetables',
+      description: 'Простой рис с сезонными овощами.',
+      servings: 2,
+      preparationMinutes: 10,
+      cookingMinutes: 30,
+      difficulty: 'EASY',
+      status: 'UNTESTED',
+      cuisineId: 3,
+      origin: 'PERSONAL',
+      sourceName: '',
+      sourceUrl: '',
+      videoUrl: '',
+      personalNotes: '',
+      equipmentIds: [1],
+      cookingMethodIds: [2],
+      ingredients: [
+        { name: 'Рис', amount: 150, unit: 'GRAM', optional: false },
+      ],
+      substitutions: [],
+      steps: [{ id: 9, instruction: 'Промыть рис.', imageUrl: null }],
+      mainImageUrl: '/images/recipes/old-rice.jpg',
+    }
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
+      const url = String(input)
+
+      if (url === '/api/recipes/form-options') return response(formOptions)
+      if (url === '/api/recipes/42/edit') return response(editRecipe)
+      if (url === '/api/recipes/42' && init?.method === 'PUT') return response({ id: 42 })
+      if (url === '/api/recipes/42') return response(recipeDetails(2, '150'))
+      return response({ items: [], total: 0 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    expect(
+      await screen.findByRole('img', { name: 'Текущая обложка рецепта Рис с овощами' }),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить обложку' }))
+
+    expect(screen.getByText('Обложка будет удалена после сохранения')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('img', { name: 'Текущая обложка рецепта Рис с овощами' }),
+    ).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить изменения' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/recipes/42',
+        expect.objectContaining({ method: 'PUT' }),
+      )
+    })
+    const updateCall = fetchMock.mock.calls.find(
+      ([input, init]) => String(input) === '/api/recipes/42' && init?.method === 'PUT',
+    )
+    const payload = JSON.parse(String(updateCall?.[1]?.body))
+    expect(payload.removeMainImage).toBe(true)
+  })
+
+  it('показывает предпросмотр и отправляет изображение выбранного шага при сохранении', async () => {
+    window.history.replaceState(null, '', '/recipes/42/edit')
+    const formOptions = {
+      difficulties: [{ value: 'EASY', name: 'Легко' }],
+      statuses: [{ value: 'UNTESTED', name: 'Не проверен' }],
+      origins: [{ value: 'PERSONAL', name: 'Личный' }],
+      measurementUnits: [{ value: 'GRAM', name: 'г' }],
+      substitutionTypes: [{ value: 'CLOSE', name: 'Близкая замена' }],
+      equipment: [{ id: 1, name: 'Электрическая плита' }],
+      cookingMethods: [{ id: 2, name: 'Варка' }],
+      cuisines: [{ id: 3, name: 'Восточнославянская' }],
+    }
+    const editRecipe = {
+      id: 42,
+      version: 7,
+      nameRu: 'Рис с овощами',
+      nameEn: 'Rice with vegetables',
+      description: 'Простой рис с сезонными овощами.',
+      servings: 2,
+      preparationMinutes: 10,
+      cookingMinutes: 30,
+      difficulty: 'EASY',
+      status: 'UNTESTED',
+      cuisineId: 3,
+      origin: 'PERSONAL',
+      sourceName: '',
+      sourceUrl: '',
+      videoUrl: '',
+      personalNotes: '',
+      equipmentIds: [1],
+      cookingMethodIds: [2],
+      ingredients: [
+        { name: 'Рис', amount: 150, unit: 'GRAM', optional: false },
+      ],
+      substitutions: [],
+      steps: [{ id: 9, instruction: 'Промыть рис.', imageUrl: null }],
+      mainImageUrl: null,
+    }
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
+      const url = String(input)
+
+      if (url === '/api/recipes/form-options') return response(formOptions)
+      if (url === '/api/recipes/42/edit') return response(editRecipe)
+      if (url === '/api/recipes/42' && init?.method === 'PUT') return response({ id: 42 })
+      if (url === '/api/recipes/42') return response(recipeDetails(2, '150'))
+      return response({ items: [], total: 0 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    expect(
+      await screen.findByRole('heading', { name: 'Редактирование рецепта' }),
+    ).toBeInTheDocument()
+
+    const stepImage = new File(['step image'], 'step-1.png', { type: 'image/png' })
+    fireEvent.change(screen.getByLabelText('Новое изображение шага 1'), {
+      target: { files: [stepImage] },
+    })
+
+    expect(
+      await screen.findByRole('img', { name: 'Предпросмотр изображения шага 1' }),
+    ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить изменения' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/recipes/42',
+        expect.objectContaining({ method: 'PUT', body: expect.any(FormData) }),
+      )
+    })
+    const updateCall = fetchMock.mock.calls.find(
+      ([input, init]) => String(input) === '/api/recipes/42' && init?.method === 'PUT',
+    )
+    const body = updateCall?.[1]?.body as FormData
+    expect(body.getAll('stepImages')).toEqual([stepImage])
+    expect(body.get('stepImageIndexes')).toBeInstanceOf(Blob)
+    expect(body.get('recipe')).toBeInstanceOf(Blob)
+  })
+
+  it('помечает изображение шага на удаление и удаляет его только при сохранении', async () => {
+    window.history.replaceState(null, '', '/recipes/42/edit')
+    const formOptions = {
+      difficulties: [{ value: 'EASY', name: 'Легко' }],
+      statuses: [{ value: 'UNTESTED', name: 'Не проверен' }],
+      origins: [{ value: 'PERSONAL', name: 'Личный' }],
+      measurementUnits: [{ value: 'GRAM', name: 'г' }],
+      substitutionTypes: [{ value: 'CLOSE', name: 'Близкая замена' }],
+      equipment: [{ id: 1, name: 'Электрическая плита' }],
+      cookingMethods: [{ id: 2, name: 'Варка' }],
+      cuisines: [{ id: 3, name: 'Восточнославянская' }],
+    }
+    const editRecipe = {
+      id: 42,
+      version: 7,
+      nameRu: 'Рис с овощами',
+      nameEn: 'Rice with vegetables',
+      description: 'Простой рис с сезонными овощами.',
+      servings: 2,
+      preparationMinutes: 10,
+      cookingMinutes: 30,
+      difficulty: 'EASY',
+      status: 'UNTESTED',
+      cuisineId: 3,
+      origin: 'PERSONAL',
+      sourceName: '',
+      sourceUrl: '',
+      videoUrl: '',
+      personalNotes: '',
+      equipmentIds: [1],
+      cookingMethodIds: [2],
+      ingredients: [
+        { name: 'Рис', amount: 150, unit: 'GRAM', optional: false },
+      ],
+      substitutions: [],
+      steps: [
+        {
+          id: 9,
+          instruction: 'Промыть рис.',
+          imageUrl: '/user-images/recipes/42/step-1.png',
+        },
+      ],
+      mainImageUrl: null,
+    }
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
+      const url = String(input)
+
+      if (url === '/api/recipes/form-options') return response(formOptions)
+      if (url === '/api/recipes/42/edit') return response(editRecipe)
+      if (url === '/api/recipes/42' && init?.method === 'PUT') return response({ id: 42 })
+      if (url === '/api/recipes/42') return response(recipeDetails(2, '150'))
+      return response({ items: [], total: 0 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    expect(
+      await screen.findByRole('img', { name: 'Текущее изображение шага 1' }),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить изображение шага 1' }))
+
+    expect(
+      screen.getByText('Изображение шага 1 будет удалено после сохранения'),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('img', { name: 'Текущее изображение шага 1' }),
+    ).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить изменения' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/recipes/42',
+        expect.objectContaining({ method: 'PUT' }),
+      )
+    })
+    const updateCall = fetchMock.mock.calls.find(
+      ([input, init]) => String(input) === '/api/recipes/42' && init?.method === 'PUT',
+    )
+    const payload = JSON.parse(String(updateCall?.[1]?.body))
+    expect(payload.steps[0].removeImage).toBe(true)
+  })
 })
 
 function recipe(overrides: { id: number; name: string }) {
