@@ -27,6 +27,7 @@ import {
 } from '@/features/management/components/recipe-form-page'
 import { RecipeCatalogSection } from '@/features/recipes/components/recipe-catalog-section'
 import { RecipeDetailsPage } from '@/features/recipes/components/recipe-details-page'
+import { IngredientRestrictionsPage } from '@/features/restrictions/components/ingredient-restrictions-page'
 import { backendUrl } from '@/lib/backend-url'
 
 const foundations = [
@@ -66,6 +67,10 @@ function App() {
             element={<CookingRecordPage />}
           />
           <Route path="recipes/:recipeId" element={<RecipeDetailsPage />} />
+          <Route
+            path="preferences/restrictions"
+            element={<IngredientRestrictionsPage />}
+          />
           <Route path="*" element={<Navigate replace to="/" />} />
         </Route>
       </Routes>

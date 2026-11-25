@@ -1011,6 +1011,336 @@ describe('управление рецептами', () => {
   })
 })
 
+describe('ограничения по ингредиентам', () => {
+  it('открывает из каталога React-страницу с действующими правилами', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input) => {
+      const url = String(input)
+
+      if (url === '/api/recipes/filter-options') {
+        return response({
+          difficulties: [],
+          equipment: [],
+          cookingMethods: [],
+          cuisines: [],
+          origins: [],
+        })
+      }
+      if (url === '/api/ingredient-restrictions') {
+        return response({
+          ingredients: [
+            { id: 1, name: 'Картофель' },
+            { id: 2, name: 'Паприка' },
+          ],
+          modes: [
+            { value: 'WARN', name: 'Предупреждать' },
+            { value: 'EXCLUDE', name: 'Исключать' },
+          ],
+          rules: [
+            {
+              ingredientId: 1,
+              ingredientName: 'Картофель',
+              mode: 'EXCLUDE',
+              modeName: 'Исключать',
+              note: 'Не предлагать блюда с картофелем',
+            },
+            {
+              ingredientId: 2,
+              ingredientName: 'Паприка',
+              mode: 'WARN',
+              modeName: 'Предупреждать',
+              note: 'Можно редко',
+            },
+          ],
+          total: 2,
+        })
+      }
+      return response({ items: [], total: 0 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    const restrictionsLink = await screen.findByRole('link', {
+      name: 'Ограничения',
+    })
+    expect(restrictionsLink).toHaveAttribute('href', '/preferences/restrictions')
+    fireEvent.click(restrictionsLink)
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Ограничения по ингредиентам',
+      }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Всего: 2')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Картофель' })).toBeInTheDocument()
+    expect(screen.getByText('Не предлагать блюда с картофелем')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Паприка' })).toBeInTheDocument()
+    expect(screen.getByText('Можно редко')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/ingredient-restrictions')
+  })
+
+  it('переходит из предупреждения в карточке рецепта к настройке ограничений', async () => {
+    window.history.replaceState(null, '', '/recipes/1')
+    const restrictedRecipe = {
+      ...recipeDetails(2, '300'),
+      excludedByRestriction: true,
+      restrictionWarnings: [
+        {
+          ingredientName: 'Куриное филе',
+          modeName: 'Исключать',
+          note: 'Временно не использовать',
+          optional: false,
+        },
+      ],
+    }
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input) => {
+      const url = String(input)
+
+      if (url === '/api/recipes/1') return response(restrictedRecipe)
+      if (url === '/api/ingredient-restrictions') {
+        return response({
+          ingredients: [{ id: 1, name: 'Куриное филе' }],
+          modes: [
+            { value: 'WARN', name: 'Предупреждать' },
+            { value: 'EXCLUDE', name: 'Исключать' },
+          ],
+          rules: [
+            {
+              ingredientId: 1,
+              ingredientName: 'Куриное филе',
+              mode: 'EXCLUDE',
+              modeName: 'Исключать',
+              note: 'Временно не использовать',
+            },
+          ],
+          total: 1,
+        })
+      }
+      return response({})
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    expect(
+      await screen.findByRole('heading', { name: 'Рецепт исключён личным правилом' }),
+    ).toBeInTheDocument()
+    const restrictionsLink = screen.getByRole('link', {
+      name: 'Настроить ограничения',
+    })
+    expect(restrictionsLink).toHaveAttribute('href', '/preferences/restrictions')
+    fireEvent.click(restrictionsLink)
+
+    expect(
+      await screen.findByRole('heading', { name: 'Ограничения по ингредиентам' }),
+    ).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/ingredient-restrictions')
+  })
+
+  it('добавляет новое правило и обновляет список без перезагрузки страницы', async () => {
+    window.history.replaceState(null, '', '/preferences/restrictions')
+    let saved = false
+    const emptyPage = {
+      ingredients: [{ id: 2, name: 'Паприка' }],
+      modes: [
+        { value: 'WARN', name: 'Предупреждать' },
+        { value: 'EXCLUDE', name: 'Исключать' },
+      ],
+      rules: [],
+      total: 0,
+    }
+    const pageWithRule = {
+      ...emptyPage,
+      rules: [
+        {
+          ingredientId: 2,
+          ingredientName: 'Паприка',
+          mode: 'WARN',
+          modeName: 'Предупреждать',
+          note: 'Можно редко',
+        },
+      ],
+      total: 1,
+    }
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
+      const url = String(input)
+
+      if (url === '/api/ingredient-restrictions/2' && init?.method === 'PUT') {
+        saved = true
+        return response(null)
+      }
+      if (url === '/api/ingredient-restrictions') {
+        return response(saved ? pageWithRule : emptyPage)
+      }
+      return response({})
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    await screen.findByRole('heading', { name: 'Ограничения по ингредиентам' })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Ингредиент' }), {
+      target: { value: '2' },
+    })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Режим' }), {
+      target: { value: 'WARN' },
+    })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Личная заметка' }), {
+      target: { value: 'Можно редко' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить правило' }))
+
+    expect(await screen.findByText('Ограничение добавлено')).toBeInTheDocument()
+    expect(screen.getByText('Всего: 1')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Паприка' })).toBeInTheDocument()
+    expect(screen.getByText('Можно редко')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/ingredient-restrictions/2', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'WARN', note: 'Можно редко' }),
+    })
+  })
+
+  it('редактирует действующее правило без смены ингредиента и перезагрузки страницы', async () => {
+    window.history.replaceState(null, '', '/preferences/restrictions')
+    let saved = false
+    const initialPage = {
+      ingredients: [{ id: 1, name: 'Картофель' }],
+      modes: [
+        { value: 'WARN', name: 'Предупреждать' },
+        { value: 'EXCLUDE', name: 'Исключать' },
+      ],
+      rules: [
+        {
+          ingredientId: 1,
+          ingredientName: 'Картофель',
+          mode: 'WARN',
+          modeName: 'Предупреждать',
+          note: 'Можно редко',
+        },
+      ],
+      total: 1,
+    }
+    const updatedPage = {
+      ...initialPage,
+      rules: [
+        {
+          ingredientId: 1,
+          ingredientName: 'Картофель',
+          mode: 'EXCLUDE',
+          modeName: 'Исключать',
+          note: 'Временно не использовать',
+        },
+      ],
+    }
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
+      const url = String(input)
+
+      if (url === '/api/ingredient-restrictions/1' && init?.method === 'PUT') {
+        saved = true
+        return response(null)
+      }
+      if (url === '/api/ingredient-restrictions') {
+        return response(saved ? updatedPage : initialPage)
+      }
+      return response({})
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    await screen.findByRole('heading', { name: 'Картофель' })
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Редактировать ограничение: Картофель' }),
+    )
+
+    const ingredientSelect = screen.getByRole('combobox', { name: 'Ингредиент' })
+    expect(ingredientSelect).toHaveValue('1')
+    expect(ingredientSelect).toBeDisabled()
+    expect(screen.getByRole('combobox', { name: 'Режим' })).toHaveValue('WARN')
+    expect(screen.getByRole('textbox', { name: 'Личная заметка' })).toHaveValue(
+      'Можно редко',
+    )
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Режим' }), {
+      target: { value: 'EXCLUDE' },
+    })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Личная заметка' }), {
+      target: { value: 'Временно не использовать' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить изменения' }))
+
+    expect(await screen.findByText('Ограничение обновлено')).toBeInTheDocument()
+    expect(screen.getByText('Временно не использовать')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/ingredient-restrictions/1', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'EXCLUDE', note: 'Временно не использовать' }),
+    })
+  })
+
+  it('удаляет правило после явного подтверждения без перезагрузки страницы', async () => {
+    window.history.replaceState(null, '', '/preferences/restrictions')
+    let deleted = false
+    const initialPage = {
+      ingredients: [{ id: 1, name: 'Картофель' }],
+      modes: [
+        { value: 'WARN', name: 'Предупреждать' },
+        { value: 'EXCLUDE', name: 'Исключать' },
+      ],
+      rules: [
+        {
+          ingredientId: 1,
+          ingredientName: 'Картофель',
+          mode: 'EXCLUDE',
+          modeName: 'Исключать',
+          note: 'Временно не использовать',
+        },
+      ],
+      total: 1,
+    }
+    const emptyPage = { ...initialPage, rules: [], total: 0 }
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
+      const url = String(input)
+
+      if (url === '/api/ingredient-restrictions/1' && init?.method === 'DELETE') {
+        deleted = true
+        return response(null)
+      }
+      if (url === '/api/ingredient-restrictions') {
+        return response(deleted ? emptyPage : initialPage)
+      }
+      return response({})
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    await screen.findByRole('heading', { name: 'Картофель' })
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Удалить ограничение: Картофель' }),
+    )
+
+    expect(
+      screen.getByText('Удалить ограничение для «Картофель»?'),
+    ).toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/ingredient-restrictions/1', {
+      method: 'DELETE',
+    })
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Подтвердить удаление: Картофель' }),
+    )
+
+    expect(await screen.findByText('Ограничение удалено')).toBeInTheDocument()
+    expect(screen.getByText('Всего: 0')).toBeInTheDocument()
+    expect(screen.getByText('Ограничения пока не настроены')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/ingredient-restrictions/1', {
+      method: 'DELETE',
+    })
+  })
+})
+
 function recipe(overrides: { id: number; name: string }) {
   return {
     id: overrides.id,

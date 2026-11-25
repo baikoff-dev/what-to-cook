@@ -15,7 +15,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice(basePackages = {
 		"io.github.baikoff.whattocook.recipe.api",
 		"io.github.baikoff.whattocook.favorite.api",
-		"io.github.baikoff.whattocook.history.api"
+		"io.github.baikoff.whattocook.history.api",
+		"io.github.baikoff.whattocook.restriction.api"
 })
 public class RecipeRestErrorHandler {
 

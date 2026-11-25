@@ -484,6 +484,9 @@ function RestrictionNotice({ recipe }: { recipe: RecipeDetails }) {
           </li>
         ))}
       </ul>
+      <Button asChild className="mt-4" size="sm" variant="outline">
+        <Link to="/preferences/restrictions">Настроить ограничения</Link>
+      </Button>
     </section>
   )
 }
