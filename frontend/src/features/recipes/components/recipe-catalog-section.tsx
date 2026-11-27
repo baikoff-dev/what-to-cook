@@ -11,6 +11,7 @@ import {
   Search,
   ShoppingBasket,
   ShieldAlert,
+  Sparkles,
 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
@@ -37,6 +38,7 @@ type FilterOptionsState =
   | { status: 'error' }
 
 const shortcuts = [
+  { icon: Sparkles, label: 'Помощник выбора', path: '/assistant' },
   { icon: ShoppingBasket, label: 'Подбор по продуктам', path: '/recipes/match' },
   { icon: Heart, label: 'Избранное', path: '/recipes/favorites' },
   { icon: History, label: 'История', path: '/recipes/history' },
@@ -147,7 +149,8 @@ export function RecipeCatalogSection() {
         <nav aria-label="Разделы приложения" className="mb-6 flex flex-wrap gap-2">
           {shortcuts.map(({ icon: Icon, label, path }) => (
             <Button asChild key={path} size="sm" variant="outline">
-              {path === '/recipes/favorites' ||
+              {path === '/assistant' ||
+              path === '/recipes/favorites' ||
               path === '/recipes/history' ||
               path === '/recipes/archive' ||
               path === '/preferences/restrictions' ? (

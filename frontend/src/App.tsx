@@ -17,6 +17,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { ApplicationShell } from '@/components/layout/application-shell'
+import { AssistantPage } from '@/features/assistant/components/assistant-page'
 import { RecipeArchivePage } from '@/features/archive/components/recipe-archive-page'
 import { FavoriteRecipesPage } from '@/features/favorites/components/favorite-recipes-page'
 import { CookingHistoryPage } from '@/features/history/components/cooking-history-page'
@@ -67,6 +68,7 @@ function App() {
             element={<CookingRecordPage />}
           />
           <Route path="recipes/:recipeId" element={<RecipeDetailsPage />} />
+          <Route path="assistant" element={<AssistantPage />} />
           <Route
             path="preferences/restrictions"
             element={<IngredientRestrictionsPage />}

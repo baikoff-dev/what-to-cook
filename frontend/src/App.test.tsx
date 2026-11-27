@@ -1341,6 +1341,350 @@ describe('ограничения по ингредиентам', () => {
   })
 })
 
+describe('помощник выбора блюда', () => {
+  it('предлагает три случайных блюда и позволяет запросить новый набор без перезагрузки', async () => {
+    window.history.replaceState(null, '', '/assistant')
+    let recommendationRequest = 0
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
+      const url = String(input)
+
+      if (
+        url === '/api/assistant/recommendations' &&
+        init?.method === 'POST'
+      ) {
+        recommendationRequest += 1
+        return response({
+          items:
+            recommendationRequest === 1
+              ? [
+                  assistantRecipe(1, 'Гречка с тушёной курицей'),
+                  assistantRecipe(2, 'Белорусские драники'),
+                  assistantRecipe(3, 'Шакшука'),
+                ]
+              : [assistantRecipe(4, 'Спагетти aglio e olio')],
+        })
+      }
+      if (url === '/api/assistant/options') {
+        return response(assistantOptions())
+      }
+      if (url === '/api/recipes/filter-options') {
+        return response({
+          difficulties: [],
+          equipment: [],
+          cookingMethods: [],
+          cuisines: [],
+          origins: [],
+        })
+      }
+      return response({ items: [], total: 0 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Не знаю, предложи сам' }),
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: 'Гречка с тушёной курицей' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Белорусские драники' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Шакшука' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: 'Гречка с тушёной курицей' }),
+    ).toHaveAttribute('href', '/recipes/1')
+    expect(fetchMock).toHaveBeenCalledWith('/api/assistant/recommendations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'SURPRISE' }),
+    })
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Удиви ещё раз' }),
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: 'Спагетти aglio e olio' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('heading', { name: 'Гречка с тушёной курицей' }),
+    ).not.toBeInTheDocument()
+    expect(recommendationRequest).toBe(2)
+    expect(window.location.pathname).toBe('/assistant')
+  })
+
+  it('подбирает блюда по выбранным продуктам и предпочтениям', async () => {
+    window.history.replaceState(null, '', '/assistant')
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
+      const url = String(input)
+
+      if (url === '/api/assistant/options') {
+        return response(assistantOptions())
+      }
+      if (
+        url === '/api/assistant/recommendations' &&
+        init?.method === 'POST'
+      ) {
+        return response({
+          items: [
+            assistantRecipe(2, 'Картофель, запечённый в духовке', {
+              equipment: ['Электродуховка'],
+              cookingMethods: ['Запекание'],
+              ingredientsSpecified: true,
+              matchPercentage: 60,
+              matchedIngredientCount: 3,
+              requiredIngredientCount: 5,
+              missingIngredients: ['Картофель', 'Чеснок'],
+              substitutionUsages: [
+                {
+                  originalIngredientName: 'Шаосинское вино',
+                  substituteIngredientName: 'Сухой херес',
+                  substitutionType: 'Близкая к классическому рецепту',
+                  impactNote: 'Вкус останется близким к оригиналу.',
+                },
+              ],
+              pantryIngredientNames: ['Растительное масло', 'Соль'],
+              lastCookedOn: '2026-11-20',
+              favorite: true,
+              averageRating: 4.5,
+              reasons: [
+                'Есть 3 из 5 обязательных продуктов',
+                'Подходит для оборудования: Электродуховка',
+              ],
+              restrictionWarnings: [
+                {
+                  ingredientName: 'Картофель',
+                  modeName: 'Предупреждать',
+                  note: 'Можно редко',
+                  optional: false,
+                  excluding: false,
+                },
+              ],
+            }),
+          ],
+        })
+      }
+      return response({ items: [], total: 0 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    expect(
+      await screen.findByRole('heading', { name: 'Уточни пожелания' }),
+    ).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/assistant/options')
+
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Поиск продуктов' }), {
+      target: { value: 'паприка' },
+    })
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Паприка' }))
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Не дольше, минут' }), {
+      target: { value: '50' },
+    })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Оборудование' }), {
+      target: { value: '10' },
+    })
+    fireEvent.change(
+      screen.getByRole('combobox', { name: 'Способ приготовления' }),
+      { target: { value: '20' } },
+    )
+    fireEvent.change(
+      screen.getByRole('combobox', { name: 'Максимальная сложность' }),
+      { target: { value: 'EASY' } },
+    )
+    fireEvent.change(screen.getByRole('combobox', { name: 'Цель' }), {
+      target: { value: 'USE_PRODUCTS' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Подобрать блюдо' }))
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Картофель, запечённый в духовке',
+      }),
+    ).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/assistant/recommendations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mode: 'PREFERENCES',
+        ingredientIds: [7],
+        maxMinutes: 50,
+        equipmentId: 10,
+        cookingMethodId: 20,
+        maxDifficulty: 'EASY',
+        goal: 'USE_PRODUCTS',
+      }),
+    })
+    expect(screen.getByText('Совпадение: 60%')).toBeInTheDocument()
+    expect(screen.getByText('3 из 5 обязательных продуктов')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Не хватает' })).toBeInTheDocument()
+    expect(screen.getByText('Картофель')).toBeInTheDocument()
+    expect(screen.getByText('Чеснок')).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Из базовой кладовой' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Растительное масло')).toBeInTheDocument()
+    expect(screen.getByText('Соль')).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Допустимые замены' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Шаосинское вино → Сухой херес')).toBeInTheDocument()
+    expect(screen.getByText('Вкус останется близким к оригиналу.')).toBeInTheDocument()
+    expect(
+      screen.getByText('Оборудование: Электродуховка'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Способ: Запекание')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Почему подходит' })).toBeInTheDocument()
+    expect(
+      screen.getByText('Есть 3 из 5 обязательных продуктов'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Личные ограничения' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Картофель: Предупреждать')).toBeInTheDocument()
+    expect(screen.getByText('Можно редко')).toBeInTheDocument()
+    expect(screen.getByText('В избранном')).toBeInTheDocument()
+    expect(screen.getByText('Средняя оценка: 4,5 из 5')).toBeInTheDocument()
+    expect(screen.getByText('Последний раз: 20.11.2026')).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/assistant')
+  })
+
+  it('не отправляет некорректные предпочтения и объясняет, что исправить', async () => {
+    window.history.replaceState(null, '', '/assistant')
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input) => {
+      if (String(input) === '/api/assistant/options') {
+        return response(assistantOptions())
+      }
+      return response({ items: [] })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    await screen.findByRole('heading', { name: 'Уточни пожелания' })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Цель' }), {
+      target: { value: 'USE_PRODUCTS' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Подобрать блюдо' }))
+
+    expect(
+      screen.getByText(
+        'Для цели «Использовать имеющиеся продукты» выбери хотя бы один продукт',
+      ),
+    ).toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      '/api/assistant/recommendations',
+      expect.anything(),
+    )
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Цель' }), {
+      target: { value: 'BALANCED' },
+    })
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Не дольше, минут' }), {
+      target: { value: '1441' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Подобрать блюдо' }))
+
+    expect(
+      screen.getByText('Время должно быть не больше 1440 минут'),
+    ).toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      '/api/assistant/recommendations',
+      expect.anything(),
+    )
+  })
+
+  it('очищает форму и результаты по действию «Начать заново»', async () => {
+    window.history.replaceState(null, '', '/assistant')
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input) => {
+      if (String(input) === '/api/assistant/options') {
+        return response(assistantOptions())
+      }
+      return response({
+        items: [assistantRecipe(2, 'Картофель, запечённый в духовке')],
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Паприка' }))
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Не дольше, минут' }), {
+      target: { value: '50' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Подобрать блюдо' }))
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Картофель, запечённый в духовке',
+      }),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Начать заново' }))
+
+    expect(
+      screen.queryByRole('heading', {
+        name: 'Картофель, запечённый в духовке',
+      }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Паприка' })).not.toBeChecked()
+    expect(screen.getByRole('spinbutton', { name: 'Не дольше, минут' })).toHaveValue(null)
+    expect(screen.getByRole('searchbox', { name: 'Поиск продуктов' })).toHaveValue('')
+  })
+})
+
+function assistantOptions() {
+  return {
+    ingredients: [
+      { id: 7, name: 'Паприка' },
+      { id: 8, name: 'Картофель' },
+    ],
+    equipment: [{ id: 10, name: 'Электродуховка' }],
+    cookingMethods: [{ id: 20, name: 'Запекание' }],
+    difficulties: [
+      { value: 'EASY', name: 'Легко' },
+      { value: 'MEDIUM', name: 'Средне' },
+    ],
+    goals: [
+      { value: 'BALANCED', name: 'Без разницы' },
+      { value: 'USE_PRODUCTS', name: 'Использовать имеющиеся продукты' },
+    ],
+  }
+}
+
+function assistantRecipe(
+  id: number,
+  nameRu: string,
+  overrides: Record<string, unknown> = {},
+) {
+  return {
+    id,
+    nameRu,
+    description: 'Описание рекомендованного блюда.',
+    coverUrl: null,
+    totalMinutes: 30,
+    difficulty: 'Легко',
+    equipment: [],
+    cookingMethods: [],
+    ingredientsSpecified: false,
+    matchPercentage: 0,
+    matchedIngredientCount: 0,
+    requiredIngredientCount: 0,
+    missingIngredients: [],
+    substitutionUsages: [],
+    pantryIngredientNames: [],
+    lastCookedOn: null,
+    favorite: false,
+    averageRating: null,
+    reasons: [],
+    restrictionWarnings: [],
+    ...overrides,
+  }
+}
+
 function recipe(overrides: { id: number; name: string }) {
   return {
     id: overrides.id,
