@@ -22,10 +22,12 @@ import { RecipeArchivePage } from '@/features/archive/components/recipe-archive-
 import { FavoriteRecipesPage } from '@/features/favorites/components/favorite-recipes-page'
 import { CookingHistoryPage } from '@/features/history/components/cooking-history-page'
 import { CookingRecordPage } from '@/features/history/components/cooking-record-page'
+import { RecipeMatchingPage } from '@/features/matching/components/recipe-matching-page'
 import {
   RecipeCreatePage,
   RecipeEditPage,
 } from '@/features/management/components/recipe-form-page'
+import { PantrySettingsPage } from '@/features/pantry/components/pantry-settings-page'
 import { RecipeCatalogSection } from '@/features/recipes/components/recipe-catalog-section'
 import { RecipeDetailsPage } from '@/features/recipes/components/recipe-details-page'
 import { IngredientRestrictionsPage } from '@/features/restrictions/components/ingredient-restrictions-page'
@@ -61,6 +63,7 @@ function App() {
           <Route path="recipes/favorites" element={<FavoriteRecipesPage />} />
           <Route path="recipes/archive" element={<RecipeArchivePage />} />
           <Route path="recipes/history" element={<CookingHistoryPage />} />
+          <Route path="recipes/match" element={<RecipeMatchingPage />} />
           <Route path="recipes/new" element={<RecipeCreatePage />} />
           <Route path="recipes/:recipeId/edit" element={<RecipeEditPage />} />
           <Route
@@ -69,6 +72,7 @@ function App() {
           />
           <Route path="recipes/:recipeId" element={<RecipeDetailsPage />} />
           <Route path="assistant" element={<AssistantPage />} />
+          <Route path="preferences/pantry" element={<PantrySettingsPage />} />
           <Route
             path="preferences/restrictions"
             element={<IngredientRestrictionsPage />}

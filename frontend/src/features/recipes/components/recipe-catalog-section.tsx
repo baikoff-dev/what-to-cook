@@ -5,6 +5,7 @@ import {
   Archive,
   Heart,
   History,
+  PackageOpen,
   Plus,
   RefreshCw,
   RotateCcw,
@@ -25,7 +26,6 @@ import {
   type RecipeCatalogItem,
 } from '@/features/recipes/api/recipe-catalog'
 import { RecipeCard } from '@/features/recipes/components/recipe-card'
-import { backendUrl } from '@/lib/backend-url'
 
 type CatalogState =
   | { status: 'loading' }
@@ -40,6 +40,7 @@ type FilterOptionsState =
 const shortcuts = [
   { icon: Sparkles, label: 'Помощник выбора', path: '/assistant' },
   { icon: ShoppingBasket, label: 'Подбор по продуктам', path: '/recipes/match' },
+  { icon: PackageOpen, label: 'Кладовая', path: '/preferences/pantry' },
   { icon: Heart, label: 'Избранное', path: '/recipes/favorites' },
   { icon: History, label: 'История', path: '/recipes/history' },
   { icon: ShieldAlert, label: 'Ограничения', path: '/preferences/restrictions' },
@@ -149,21 +150,10 @@ export function RecipeCatalogSection() {
         <nav aria-label="Разделы приложения" className="mb-6 flex flex-wrap gap-2">
           {shortcuts.map(({ icon: Icon, label, path }) => (
             <Button asChild key={path} size="sm" variant="outline">
-              {path === '/assistant' ||
-              path === '/recipes/favorites' ||
-              path === '/recipes/history' ||
-              path === '/recipes/archive' ||
-              path === '/preferences/restrictions' ? (
-                <Link to={path}>
-                  <Icon aria-hidden="true" data-icon="inline-start" />
-                  {label}
-                </Link>
-              ) : (
-                <a href={backendUrl(path)}>
-                  <Icon aria-hidden="true" data-icon="inline-start" />
-                  {label}
-                </a>
-              )}
+              <Link to={path}>
+                <Icon aria-hidden="true" data-icon="inline-start" />
+                {label}
+              </Link>
             </Button>
           ))}
         </nav>

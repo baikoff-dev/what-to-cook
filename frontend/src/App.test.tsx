@@ -1636,6 +1636,467 @@ describe('помощник выбора блюда', () => {
   })
 })
 
+describe('подбор рецептов по продуктам', () => {
+  it('подбирает рецепты по выбранному продукту без перезагрузки страницы', async () => {
+    window.history.replaceState(null, '', '/recipes/match')
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input) => {
+      const url = String(input)
+
+      if (url === '/api/recipe-matches') {
+        return response({
+          ingredients: [
+            { id: 7, name: 'Паприка' },
+            { id: 8, name: 'Картофель' },
+          ],
+          selectedIngredientIds: [],
+          recipes: [],
+        })
+      }
+      if (url === '/api/recipe-matches?ingredientIds=7') {
+        return response({
+          ingredients: [
+            { id: 7, name: 'Паприка' },
+            { id: 8, name: 'Картофель' },
+          ],
+          selectedIngredientIds: [7],
+          recipes: [
+            {
+              id: 2,
+              nameRu: 'Картофель, запечённый в духовке',
+              description: 'Картофельные дольки с паприкой.',
+              coverUrl: null,
+              matchPercentage: 60,
+              matchedIngredientCount: 3,
+              requiredIngredientCount: 5,
+              missingIngredients: ['Картофель', 'Чеснок'],
+              substitutionUsages: [
+                {
+                  originalIngredientName: 'Копчёная паприка',
+                  substituteIngredientName: 'Сладкая паприка',
+                  substitutionType: 'Допустимая замена',
+                  impactNote: 'Блюдо получится менее дымным.',
+                },
+              ],
+              pantryIngredientNames: ['Растительное масло', 'Соль'],
+              totalMinutes: 50,
+              difficulty: 'Легко',
+              restrictionWarnings: [
+                {
+                  ingredientName: 'Картофель',
+                  modeName: 'Предупреждать',
+                  note: 'Можно редко',
+                  optional: false,
+                  excluding: false,
+                },
+              ],
+            },
+          ],
+        })
+      }
+      if (url === '/api/recipes/filter-options') {
+        return response({
+          difficulties: [],
+          equipment: [],
+          cookingMethods: [],
+          cuisines: [],
+          origins: [],
+        })
+      }
+      return response({ items: [], total: 0 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    expect(
+      await screen.findByRole('heading', { name: 'Что можно приготовить?' }),
+    ).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/recipe-matches')
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Паприка' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Подобрать рецепты' }))
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Картофель, запечённый в духовке',
+      }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Совпадение: 60%')).toBeInTheDocument()
+    expect(screen.getByText('3 из 5 обязательных продуктов')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Не хватает' })).toBeInTheDocument()
+    expect(screen.getAllByText('Картофель')).toHaveLength(2)
+    expect(screen.getByText('Чеснок')).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Из базовой кладовой' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Растительное масло')).toBeInTheDocument()
+    expect(screen.getByText('Соль')).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Допустимые замены' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('Копчёная паприка → Сладкая паприка'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Блюдо получится менее дымным.')).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Личные ограничения' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Картофель: Предупреждать')).toBeInTheDocument()
+    expect(screen.getByText('Можно редко')).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: 'Картофель, запечённый в духовке' }),
+    ).toHaveAttribute('href', '/recipes/2')
+    expect(fetchMock).toHaveBeenCalledWith('/api/recipe-matches?ingredientIds=7')
+    expect(window.location.pathname).toBe('/recipes/match')
+  })
+
+  it('открывает подбор из каталога внутри React-приложения', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input) => {
+      const url = String(input)
+
+      if (url === '/api/recipes/filter-options') {
+        return response({
+          difficulties: [],
+          equipment: [],
+          cookingMethods: [],
+          cuisines: [],
+          origins: [],
+        })
+      }
+      if (url === '/api/recipe-matches') {
+        return response({
+          ingredients: [{ id: 7, name: 'Паприка' }],
+          selectedIngredientIds: [],
+          recipes: [],
+        })
+      }
+      return response({ items: [], total: 0 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    const shortcut = await screen.findByRole('link', {
+      name: 'Подбор по продуктам',
+    })
+    expect(shortcut).toHaveAttribute('href', '/recipes/match')
+    fireEvent.click(shortcut)
+
+    expect(
+      await screen.findByRole('heading', { name: 'Что можно приготовить?' }),
+    ).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/recipe-matches')
+    expect(window.location.pathname).toBe('/recipes/match')
+  })
+
+  it('фильтрует продукты, объясняет пустой результат и очищает подбор', async () => {
+    window.history.replaceState(null, '', '/recipes/match')
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input) => {
+      const url = String(input)
+      const ingredients = [
+        { id: 7, name: 'Паприка' },
+        { id: 8, name: 'Картофель' },
+        { id: 9, name: 'Чеснок' },
+      ]
+
+      if (url === '/api/recipe-matches?ingredientIds=7') {
+        return response({
+          ingredients,
+          selectedIngredientIds: [7],
+          recipes: [],
+        })
+      }
+      return response({
+        ingredients,
+        selectedIngredientIds: [],
+        recipes: [],
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    const search = await screen.findByRole('searchbox', {
+      name: 'Найти продукт в списке',
+    })
+    fireEvent.change(search, { target: { value: 'пап' } })
+
+    expect(screen.getByRole('checkbox', { name: 'Паприка' })).toBeInTheDocument()
+    expect(
+      screen.queryByRole('checkbox', { name: 'Картофель' }),
+    ).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Паприка' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Подобрать рецепты' }))
+
+    expect(
+      await screen.findByText(
+        'По выбранным продуктам рецепты не найдены. Попробуй выбрать другие продукты.',
+      ),
+    ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Очистить' }))
+
+    expect(
+      screen.getByRole('searchbox', { name: 'Найти продукт в списке' }),
+    ).toHaveValue('')
+    expect(screen.getByRole('checkbox', { name: 'Паприка' })).not.toBeChecked()
+    expect(
+      screen.queryByRole('heading', { name: 'Результаты подбора' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('повторяет загрузку продуктов после ошибки', async () => {
+    window.history.replaceState(null, '', '/recipes/match')
+    let attempts = 0
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input) => {
+      if (String(input) === '/api/recipe-matches') {
+        attempts += 1
+        if (attempts === 1) {
+          throw new Error('Backend временно недоступен')
+        }
+        return response({
+          ingredients: [{ id: 7, name: 'Паприка' }],
+          selectedIngredientIds: [],
+          recipes: [],
+        })
+      }
+      return response({ items: [], total: 0 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    expect(
+      await screen.findByText('Не удалось загрузить подбор по продуктам'),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Продукты дома' }),
+    ).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('базовая кладовая', () => {
+  it('загружает текущий состав и сохраняет изменения без перезагрузки страницы', async () => {
+    window.history.replaceState(null, '', '/preferences/pantry')
+    const ingredients = [
+      { id: 1, name: 'Вода', selected: true },
+      { id: 2, name: 'Растительное масло', selected: true },
+      { id: 3, name: 'Соль', selected: true },
+      { id: 7, name: 'Паприка', selected: false },
+    ]
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
+      const url = String(input)
+
+      if (url === '/api/pantry' && init?.method === 'PUT') {
+        return response({
+          ingredients: ingredients.map((ingredient) => ({
+            ...ingredient,
+            selected: ingredient.id === 1 || ingredient.id === 3,
+          })),
+          selectedIngredientNames: ['Вода', 'Соль'],
+        })
+      }
+      if (url === '/api/pantry') {
+        return response({
+          ingredients,
+          selectedIngredientNames: ['Вода', 'Растительное масло', 'Соль'],
+        })
+      }
+      return response({ items: [], total: 0 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    expect(
+      await screen.findByRole('heading', { name: 'Базовая кладовая' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Вода' })).toBeChecked()
+    expect(
+      screen.getByRole('checkbox', { name: 'Растительное масло' }),
+    ).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Соль' })).toBeChecked()
+
+    fireEvent.click(
+      screen.getByRole('checkbox', { name: 'Растительное масло' }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить кладовую' }))
+
+    expect(
+      await screen.findByText('Сейчас всегда учитываются: Вода, Соль'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Базовая кладовая сохранена')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/pantry', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ingredientIds: [1, 3] }),
+    })
+    expect(window.location.pathname).toBe('/preferences/pantry')
+  })
+
+  it('открывает кладовую из каталога внутри React-приложения', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input) => {
+      const url = String(input)
+
+      if (url === '/api/recipes/filter-options') {
+        return response({
+          difficulties: [],
+          equipment: [],
+          cookingMethods: [],
+          cuisines: [],
+          origins: [],
+        })
+      }
+      if (url === '/api/pantry') {
+        return response({
+          ingredients: [{ id: 1, name: 'Вода', selected: true }],
+          selectedIngredientNames: ['Вода'],
+        })
+      }
+      return response({ items: [], total: 0 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    const pantryLink = await screen.findByRole('link', { name: 'Кладовая' })
+    expect(pantryLink).toHaveAttribute('href', '/preferences/pantry')
+    fireEvent.click(pantryLink)
+
+    expect(
+      await screen.findByRole('heading', { name: 'Базовая кладовая' }),
+    ).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/pantry')
+    expect(window.location.pathname).toBe('/preferences/pantry')
+  })
+
+  it('фильтрует список продуктов по названию', async () => {
+    window.history.replaceState(null, '', '/preferences/pantry')
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      response({
+        ingredients: [
+          { id: 1, name: 'Вода', selected: true },
+          { id: 2, name: 'Растительное масло', selected: true },
+          { id: 7, name: 'Паприка', selected: false },
+        ],
+        selectedIngredientNames: ['Вода', 'Растительное масло'],
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    const search = await screen.findByRole('searchbox', {
+      name: 'Найти продукт в списке',
+    })
+    fireEvent.change(search, { target: { value: 'пап' } })
+
+    expect(screen.getByRole('checkbox', { name: 'Паприка' })).toBeInTheDocument()
+    expect(
+      screen.queryByRole('checkbox', { name: 'Вода' }),
+    ).not.toBeInTheDocument()
+
+    fireEvent.change(search, { target: { value: 'гречка' } })
+    expect(screen.getByText('Продукты по запросу не найдены')).toBeInTheDocument()
+  })
+
+  it('повторяет начальную загрузку после ошибки', async () => {
+    window.history.replaceState(null, '', '/preferences/pantry')
+    let attempts = 0
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async () => {
+      attempts += 1
+      if (attempts === 1) {
+        throw new Error('Backend временно недоступен')
+      }
+      return response({
+        ingredients: [{ id: 1, name: 'Вода', selected: true }],
+        selectedIngredientNames: ['Вода'],
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    expect(
+      await screen.findByText('Не удалось загрузить базовую кладовую'),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Продукты кладовой' }),
+    ).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('сохраняет выбранные значения в форме после ошибки сохранения', async () => {
+    window.history.replaceState(null, '', '/preferences/pantry')
+    const ingredients = [
+      { id: 1, name: 'Вода', selected: true },
+      { id: 2, name: 'Растительное масло', selected: true },
+    ]
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
+      if (String(input) === '/api/pantry' && init?.method === 'PUT') {
+        return { ok: false, json: async () => ({}) } as Response
+      }
+      return response({
+        ingredients,
+        selectedIngredientNames: ['Вода', 'Растительное масло'],
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    fireEvent.click(
+      await screen.findByRole('checkbox', { name: 'Растительное масло' }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить кладовую' }))
+
+    expect(
+      await screen.findByText('Не удалось сохранить базовую кладовую'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Вода' })).toBeChecked()
+    expect(
+      screen.getByRole('checkbox', { name: 'Растительное масло' }),
+    ).not.toBeChecked()
+  })
+
+  it('сохраняет пустую кладовую', async () => {
+    window.history.replaceState(null, '', '/preferences/pantry')
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
+      if (String(input) === '/api/pantry' && init?.method === 'PUT') {
+        return response({
+          ingredients: [{ id: 1, name: 'Вода', selected: false }],
+          selectedIngredientNames: [],
+        })
+      }
+      return response({
+        ingredients: [{ id: 1, name: 'Вода', selected: true }],
+        selectedIngredientNames: ['Вода'],
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Вода' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить кладовую' }))
+
+    expect(
+      await screen.findByText('Сейчас базовая кладовая пуста.'),
+    ).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/pantry', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ingredientIds: [] }),
+    })
+  })
+})
+
 function assistantOptions() {
   return {
     ingredients: [
